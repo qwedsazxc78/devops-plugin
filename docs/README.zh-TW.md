@@ -8,8 +8,8 @@
 
 ```bash
 # 方式 A：透過 Marketplace 安裝（推薦）
-/plugin marketplace add <your-org>/devops-plugin
-/plugin install devops@awoo-devops
+/plugin marketplace add qwedsazxc78/devops-plugin
+/plugin install devops@devops-go
 
 # 方式 B：本地開發
 claude --plugin-dir ./devops-plugin

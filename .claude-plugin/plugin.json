@@ -1,11 +1,12 @@
 {
   "name": "devops",
   "description": "DevOps operations agents for Infrastructure-as-Code and GitOps. Includes Horus (IaC Operations Engineer) for Terraform + Helm + GKE, and Zeus (GitOps Engineer) for Kustomize + ArgoCD management with automated pipelines.",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "author": {
     "name": "Awoo Platform Team"
   },
-  "homepage": "https://github.com/awoo-corp/devops-plugin",
+  "homepage": "https://github.com/qwedsazxc78/devops-plugin",
+  "repository": "https://github.com/qwedsazxc78/devops-plugin",
   "license": "MIT",
   "keywords": ["devops", "terraform", "helm", "kustomize", "argocd", "gitops", "iac", "gke", "security"]
 }

@@ -1,5 +1,5 @@
 {
-  "name": "awoo-devops",
+  "name": "devops-go",
   "owner": {
     "name": "Awoo Platform Team"
   },
@@ -12,7 +12,7 @@
       "name": "devops",
       "source": "./",
       "description": "Two AI-powered DevOps agents (Horus for IaC, Zeus for GitOps) with 20+ automated pipeline commands for Terraform, Helm, Kustomize, and ArgoCD.",
-      "version": "1.1.0",
+      "version": "1.0.0",
       "author": {
         "name": "Awoo Platform Team"
       },

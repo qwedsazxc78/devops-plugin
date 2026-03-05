@@ -8,8 +8,8 @@
 
 ```bash
 # Option A: Add marketplace + install (recommended)
-/plugin marketplace add <your-org>/devops-plugin
-/plugin install devops@awoo-devops
+/plugin marketplace add qwedsazxc78/devops-plugin
+/plugin install devops@devops-go
 
 # Option B: Local development
 claude --plugin-dir ./devops-plugin

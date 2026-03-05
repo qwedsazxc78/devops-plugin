@@ -31,8 +31,8 @@ Complete guide to installing, configuring, and using the DevOps plugin with Horu
 
 ```bash
 # Inside Claude Code — add the marketplace, then install the plugin
-/plugin marketplace add <your-org>/devops-plugin
-/plugin install devops@awoo-devops
+/plugin marketplace add qwedsazxc78/devops-plugin
+/plugin install devops@devops-go
 ```
 
 ### Option B: Local development
@@ -49,15 +49,15 @@ Add to your project's `.claude/settings.json`:
 ```json
 {
   "extraKnownMarketplaces": {
-    "awoo-devops": {
+    "devops-go": {
       "source": {
         "source": "github",
-        "repo": "<your-org>/devops-plugin"
+        "repo": "qwedsazxc78/devops-plugin"
       }
     }
   },
   "enabledPlugins": {
-    "devops@awoo-devops": true
+    "devops@devops-go": true
   }
 }
 ```
