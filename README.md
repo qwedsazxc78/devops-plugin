@@ -1,5 +1,7 @@
 # DevOps Plugin for Claude Code
 
+**English** | [繁體中文](docs/README.zh-TW.md)
+
 > Two AI-powered DevOps agents — **Horus** (IaC) and **Zeus** (GitOps) — with 20+ automated pipeline commands for Terraform, Helm, Kustomize, and ArgoCD.
 
 ## Quick Start

@@ -1,5 +1,7 @@
 # DevOps Plugin for Claude Code
 
+[English](../README.md) | **繁體中文**
+
 > 兩個 AI 驅動的 DevOps 代理 — **Horus**（IaC）和 **Zeus**（GitOps）— 提供 20+ 自動化流水線指令，支援 Terraform、Helm、Kustomize 和 ArgoCD。
 
 ## 快速開始
