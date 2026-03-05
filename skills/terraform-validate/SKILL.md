@@ -1,3 +1,12 @@
+---
+name: terraform-validate
+description: >
+  Comprehensive validation and linting of Terraform configurations.
+  Covers syntax, formatting, schema validation, cross-file consistency,
+  and naming conventions. Use when validating Terraform code, checking
+  formatting, or auditing naming conventions.
+---
+
 # Terraform Validate Skill
 
 ## Purpose
@@ -13,24 +22,63 @@ This skill activates when the user requests:
 - Running a pre-commit check
 - Auditing naming conventions
 
+## Step 0: Discover Repository Layout
+
+**Do NOT assume hardcoded directory names.** Discover the Terraform root at runtime:
+
+### 0a: Find Terraform Root Directory
+Locate directories containing `*.tf` files (excluding `.terraform/` provider cache):
+```bash
+find . -name "*.tf" -not -path "*/.terraform/*" | xargs dirname | sort -u
+```
+If multiple directories are found, identify the root (the one containing `backend` or `provider` blocks):
+```bash
+grep -rl 'backend\s*"\|provider\s*"' --include="*.tf" . | grep -v '.terraform/' | xargs dirname | sort -u
+```
+Store the result as `<terraform-root>` for all subsequent steps.
+
+### 0b: Find JSON Schema Files (if any)
+Search for JSON schema files dynamically:
+```bash
+find . -name "*.schema.json" -o -name "schema*.json" -o -path "*/schema/*.json" | grep -v '.terraform/'
+```
+If found, also discover JSON config files that should be validated against them:
+```bash
+find . -name "*-app.json" -o -name "*.tfvars.json" | grep -v '.terraform/'
+```
+If no schemas are found, skip JSON schema validation entirely.
+
+### 0c: Find Helm Module Orchestrator (if any)
+Search for Terraform files with Helm module blocks (for cross-file consistency checks):
+```bash
+grep -rl 'source\s*=.*modules.*helm\|helm_release' --include="*.tf" . | grep -v '.terraform/'
+```
+If not found, skip Helm-specific consistency checks (Steps 4a-4c).
+
+### 0d: Find Identity/IAM Configuration (if any)
+```bash
+grep -rl 'workload_identity\|google_service_account\|kubernetes_namespace' --include="*.tf" . | grep -v '.terraform/'
+```
+If not found, skip workload identity checks (Step 4d).
+
 ## Workflow
 
 ### Step 1: Terraform Format Check
 
-Run `terraform fmt -check -recursive` on the `application/` directory.
+Run `terraform fmt -check -recursive` on the discovered Terraform root.
 
 ```bash
-cd application && terraform fmt -check -recursive
+cd <terraform-root> && terraform fmt -check -recursive
 ```
 
 **Output:** List of files that need formatting. Offer to auto-fix with `terraform fmt -recursive`.
 
 ### Step 2: Terraform Validate
 
-Run `terraform validate` on the `application/` directory.
+Run `terraform validate` on the discovered Terraform root.
 
 ```bash
-cd application && terraform init -backend=false && terraform validate
+cd <terraform-root> && terraform init -backend=false && terraform validate
 ```
 
 **Note:** Use `-backend=false` since the HTTP backend requires credentials. Validation checks syntax and internal consistency without needing state access.
@@ -43,14 +91,16 @@ cd application && terraform init -backend=false && terraform validate
 
 ### Step 3: JSON Schema Validation
 
-Validate all `infra/*.json` files against `infra/schema/app-config.schema.json`.
+**Skip this step entirely if no schema files were discovered in Step 0b.**
+
+Validate all discovered JSON config files against their corresponding schema files.
 
 **Files to validate:**
-- Discover all `infra/*-app.json` files dynamically
+- Use the JSON config files and schema files discovered in Step 0b
 
 **Validation approach:**
-1. Read the schema from `infra/schema/app-config.schema.json`
-2. Read each environment JSON file
+1. Read the schema file(s) discovered in Step 0b
+2. Read each JSON config file
 3. Verify all `required` fields are present
 4. Verify field types match schema definitions
 5. Verify nested object schemas
@@ -62,35 +112,41 @@ Validate all `infra/*.json` files against `infra/schema/app-config.schema.json`.
 
 #### 4a: Helm Version Consistency
 
-For each active module in `3-gke-package.tf`, verify the `install_version` matches across:
-1. `3-gke-package.tf` -> module block `install_version`
-2. `modules/helm/<name>/variable(s).tf` -> `install_version` default
-3. `modules/helm/helm_install.md` -> `--version` in helm command
+**Skip if no Helm orchestrator was found in Step 0c.**
 
-**Dynamic discovery:** For each module, check if `variable.tf` (singular) exists; if not, use `variables.tf` (plural). Do NOT rely on a static registry file.
+For each active module in the discovered orchestrator file, verify the version matches across:
+1. Orchestrator file -> module block version field
+2. Module directory -> variable file version default
+3. Version-tracking doc (if any) -> `--version` in helm command
+
+**Dynamic discovery:** For each module directory, find the variable file by checking for `variable.tf`, `variables.tf`, or any `.tf` file containing a version variable. Do NOT rely on a static registry or hardcoded file names.
 
 #### 4b: Module Source Path Consistency
 
-Verify every `source = "./modules/helm/<name>"` path in `3-gke-package.tf` points to a directory that actually exists.
+**Skip if no Helm orchestrator was found in Step 0c.**
+
+Verify every `source` path in module blocks points to a directory that actually exists.
 
 #### 4c: Environment Config Completeness
 
-For modules that use `configs-${var.environment}.yaml`, verify that config files exist for all environments the module claims to support:
-- If module has `environment` variable -> check configs-dev.yaml, configs-stg.yaml, configs-prd.yaml exist
-- If module has `dr` variable -> check configs-dev-dr.yaml, configs-prd-dr.yaml exist (where applicable)
+**Skip if no Helm modules were found.**
+
+For modules that use environment-specific config files (e.g., `configs-${var.environment}.yaml`), verify config files exist for all environments the module claims to support.
 
 #### 4d: Workload Identity Alignment
 
-Cross-reference:
-- `3-gke-identity.tf` -> `local.workload_namespace` list
-- `3-gke-identity.tf` -> workload identity module definitions
-- `3-gke-package.tf` -> modules with `depends_on` including `kubernetes_namespace.workload_identity`
+**Skip if no identity/IAM configuration was found in Step 0d.**
+
+Cross-reference the discovered identity file(s):
+- Find `local.workload_namespace` or equivalent namespace lists
+- Find workload identity module definitions
+- Find modules with `depends_on` referencing workload identity resources
 
 Flag any modules that depend on workload identity namespace but aren't in the namespace list, or vice versa.
 
-#### 4e: GKE Module Version Consistency
+#### 4e: GKE/Cloud Module Version Consistency
 
-Verify the `version` in the GKE module (`3-gke.tf`) matches the `version` in all workload identity modules (`3-gke-identity.tf`).
+Search for GKE module definitions (`google_container_cluster`) or equivalent cloud provider modules. Verify the `version` is consistent across all files using the same module source.
 
 ### Step 5: Naming Convention Audit
 
@@ -156,7 +212,7 @@ When invoked from the `*validate` pipeline with "light" security scan:
 
 The skill can auto-fix:
 - Formatting issues (`terraform fmt`)
-- Version mismatches (align to `3-gke-package.tf` as source of truth)
+- Version mismatches (align to the orchestrator file as source of truth)
 
 The skill CANNOT auto-fix:
 - Schema validation errors (require understanding of environment requirements)

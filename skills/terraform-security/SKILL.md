@@ -1,3 +1,12 @@
+---
+name: terraform-security
+description: >
+  Security auditing for GKE platforms managed via Terraform + Helm.
+  Covers GKE cluster hardening, Terraform code scanning, Helm chart
+  security review, and CIS benchmark alignment. Use when performing
+  security audits, checking for hardcoded secrets, or reviewing IAM.
+---
+
 # Terraform Security Skill
 
 ## Purpose
@@ -13,11 +22,44 @@ This skill activates when the user requests:
 - Checking for hardcoded secrets
 - CIS benchmark compliance check
 
+## Step 0: Discover Repository Layout
+
+**Do NOT assume hardcoded file names.** Discover security-relevant files at runtime:
+
+### 0a: Find Cloud/Cluster Configuration
+Search for files defining cloud infrastructure resources:
+```bash
+# GKE / Kubernetes clusters
+grep -rl 'google_container_cluster\|google_container_node_pool\|azurerm_kubernetes_cluster\|aws_eks_cluster' --include="*.tf" . | grep -v '.terraform/'
+
+# General cloud resources
+grep -rl 'resource\s*"google_\|resource\s*"aws_\|resource\s*"azurerm_' --include="*.tf" . | grep -v '.terraform/'
+```
+Store discovered files as `<cluster-config-files>`.
+
+### 0b: Find IAM/Identity Configuration
+```bash
+grep -rl 'google_service_account\|workload_identity\|google_project_iam\|aws_iam_role\|azurerm_role_assignment' --include="*.tf" . | grep -v '.terraform/'
+```
+Store discovered files as `<identity-config-files>`.
+
+### 0c: Find Helm Module Files
+```bash
+grep -rl 'helm_release\|helm_install' --include="*.tf" . | grep -v '.terraform/'
+```
+
+### 0d: Find Values and Docs with Potential Secrets
+```bash
+find . -name "*.yaml" -o -name "*.yml" -o -name "*.md" | grep -v '.terraform/' | xargs grep -l 'password\|secret\|token\|credential\|api.key' 2>/dev/null
+```
+
 ## Workflow
 
-### Step 1: GKE Cluster Security Audit
+### Step 1: Cloud/Cluster Security Audit
 
-Analyze the GKE cluster configuration file (typically `3-gke.tf`) against the GKE_HARDENING.md checklist:
+**Skip if no cluster config files were found in Step 0a.**
+
+Analyze the discovered cluster configuration files against the GKE_HARDENING.md checklist (or equivalent cloud provider hardening guide):
 
 1. **Network Security**
    - Private cluster configuration (enable_private_nodes, enable_private_endpoint)
@@ -50,14 +92,14 @@ Scan all `.tf` files in the Terraform root directory for:
 
 1. **Hardcoded Secrets**
    - Search for patterns: `password`, `secret`, `token`, `key`, `credential` in string literals
-   - Check `helm_install.md` for exposed secrets (e.g., the grafana OAuth secret)
+   - Check discovered docs and values files (Step 0d) for exposed secrets
    - Check values YAML files for sensitive data
 
 2. **Permissive IAM**
-   - Flag overly broad roles in `3-gke-identity.tf`:
-     - `roles/owner`, `roles/editor` → Critical
-     - `roles/storage.admin` (vs objectAdmin) → Medium
-     - Excessive cross-project permissions → High
+   - Flag overly broad roles in the discovered identity config files (Step 0b):
+     - `roles/owner`, `roles/editor`, `AdministratorAccess` → Critical
+     - `roles/storage.admin` (vs objectAdmin), overly broad `Action` blocks → Medium
+     - Excessive cross-project/cross-account permissions → High
    - Check service account token creator permissions
 
 3. **Insecure Defaults**
@@ -146,7 +188,7 @@ When invoked from `*validate` pipeline:
 The skill can offer to auto-fix:
 - **Low risk:** Enable network policies in Helm values (if chart supports it)
 - **Low risk:** Add resource limits to Helm values
-- **Low risk:** Remove hardcoded secrets from `helm_install.md` (replace with `<REDACTED>`)
+- **Low risk:** Remove hardcoded secrets from discovered docs (replace with `<REDACTED>`)
 
 The skill CANNOT auto-fix (requires user decision):
 - IAM role changes (may break functionality)

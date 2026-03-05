@@ -1,8 +1,17 @@
+---
+name: helm-version-upgrade
+description: >
+  Manages Helm chart version upgrades across Terraform+Helm platforms.
+  Handles atomic 3-file updates with version discovery from ArtifactHub.
+  Use when upgrading Helm charts, checking for outdated versions, or
+  performing version consistency checks.
+---
+
 # Helm Version Upgrade Skill
 
 ## Purpose
 
-Manages Helm chart version upgrades across Terraform+Helm platforms. Handles the **atomic 3-file update** pattern: `3-gke-package.tf` + `modules/helm/<name>/variable(s).tf` + `modules/helm/helm_install.md`.
+Manages Helm chart version upgrades across Terraform+Helm platforms. Handles an **atomic multi-file update** pattern: the Terraform file containing Helm module blocks + each module's variable file + any version-tracking documentation.
 
 ## Activation
 
@@ -10,19 +19,41 @@ This skill activates when the user requests:
 - Checking for outdated Helm charts
 - Upgrading a specific Helm chart version
 - Upgrading all Helm charts
-- Checking version consistency across the 3 files
+- Checking version consistency across module files
 
-## Dynamic Module Discovery
+## Step 0: Discover Repository Layout
 
-**Do NOT rely on a static registry file.** Discover modules at runtime:
+**Do NOT assume any hardcoded file names or paths.** Discover the repo structure at runtime:
 
-1. Parse `3-gke-package.tf` for all `module "<name>"` blocks with `source = "./modules/helm/<name>"`
-2. For each module, determine the variable file:
-   - Check if `modules/helm/<name>/variable.tf` exists (singular)
-   - If not, use `modules/helm/<name>/variables.tf` (plural)
-3. To find ArtifactHub slugs, read each module's `main.tf` and extract `repository` + `chart` fields from the `helm_release` resource
-4. For OCI charts (no `repository` field), extract `chart = "oci://..."` URL
-5. Skip commented-out module blocks (lines starting with `#`)
+### 0a: Find the Helm Module Orchestrator File
+Search for Terraform files containing Helm module blocks:
+```bash
+grep -rl 'source\s*=.*modules.*helm\|module.*helm\|helm_release' --include="*.tf" . | grep -v '.terraform/'
+```
+This identifies the orchestrator file(s) (e.g., `3-gke-package.tf`, `main.tf`, `helm.tf`, etc.).
+
+### 0b: Discover Module Directories
+Parse the orchestrator file(s) for `module` blocks. Extract `source` paths to find module directories:
+- Pattern: `source = "./modules/helm/<name>"` or `source = "../modules/<name>"` or any relative path
+- Verify each discovered directory exists
+
+### 0c: Discover Module Variable Files
+For each module directory, find the variable file:
+- Check for `variable.tf` (singular), `variables.tf` (plural), or any `.tf` file containing `variable "install_version"` blocks
+- Pattern: `grep -l 'variable.*install_version\|variable.*chart_version\|variable.*version' <module-dir>/*.tf`
+
+### 0d: Discover Version-Tracking Documentation
+Search for any Markdown file containing version references:
+```bash
+find . -name "*.md" -not -path "./.terraform/*" | xargs grep -l '\-\-version\|helm.*upgrade\|helm.*install' 2>/dev/null
+```
+This may find version-tracking docs, install guides, or project readmes. If none found, skip the documentation update step.
+
+### 0e: Discover Chart Metadata
+For each module, read its `main.tf` (or any `.tf` file containing `helm_release`) and extract:
+- `repository` + `chart` fields from the `helm_release` resource
+- For OCI charts (no `repository` field), extract `chart = "oci://..."` URL
+- Skip commented-out module blocks (lines starting with `#`)
 
 ## Workflow
 
@@ -35,24 +66,24 @@ Ask the user which modules to check:
 
 ### Step 2: Read Current Versions
 
-Parse `3-gke-package.tf` to extract current `install_version` for each module block. Use dynamic discovery to build the module list.
+Parse the discovered orchestrator file(s) to extract current `install_version` (or `chart_version`/`version`) for each module block. Use the module list from Step 0.
 
 ### Step 3: Verify 3-File Consistency
 
-For each module in scope, verify the version matches across all 3 locations:
+For each module in scope, verify the version matches across all discovered locations:
 
 | Location | How to find version |
 |----------|-------------------|
-| `3-gke-package.tf` | `install_version = "X.Y.Z"` in the module block |
-| `modules/helm/<name>/variable(s).tf` | `default = "X.Y.Z"` in the `install_version` variable |
-| `modules/helm/helm_install.md` | `--version X.Y.Z` in the helm command |
+| Orchestrator file (from Step 0a) | `install_version = "X.Y.Z"` in the module block |
+| Module variable file (from Step 0c) | `default = "X.Y.Z"` in the version variable |
+| Version doc (from Step 0d, if found) | `--version X.Y.Z` in the helm command |
 
-**CRITICAL:** Some modules use `variable.tf` (singular) and others use `variables.tf` (plural). Use dynamic discovery (check file existence) to determine the correct filename.
+**CRITICAL:** Variable files vary across repos (`variable.tf`, `variables.tf`, or others). Always use the file discovered in Step 0c. If no version-tracking doc was found in Step 0d, skip that check.
 
 If any mismatch is found:
 1. Report the inconsistency with exact values from each file
 2. Ask user whether to fix the mismatch first or proceed with upgrade
-3. If fixing, align all 3 files to the version in `3-gke-package.tf` (source of truth)
+3. If fixing, align all files to the version in the orchestrator file (source of truth)
 
 ### Step 4: Query Latest Versions
 
@@ -103,21 +134,22 @@ Present the list of available upgrades and ask user to confirm:
 
 ### Step 7: Atomic 3-File Update
 
-For each confirmed module, update all 3 files atomically:
+For each confirmed module, update all discovered files atomically:
 
-**File 1: `3-gke-package.tf`**
-- Find the module block by matching `source = "./modules/helm/<name>"`
-- Update `install_version = "<new_version>"`
+**File 1: Orchestrator file (from Step 0a)**
+- Find the module block by matching the `source` path for this module
+- Update `install_version = "<new_version>"` (or `chart_version`/`version` as used)
 - For multi-instance modules (same source, multiple blocks), update ALL instances
 
-**File 2: `modules/helm/<name>/variable(s).tf`**
-- Find the `install_version` variable block
+**File 2: Module variable file (from Step 0c)**
+- Find the version variable block (`install_version`, `chart_version`, or `version`)
 - Update `default = "<new_version>"`
-- Use the correct filename discovered dynamically
+- Use the exact filename discovered in Step 0c
 
-**File 3: `modules/helm/helm_install.md`**
+**File 3: Version-tracking doc (from Step 0d, if found)**
 - Find the section for this module (by heading or helm command)
 - Update `--version <new_version>` in the helm command
+- Skip this step if no version doc was discovered
 
 See UPGRADE_PATTERNS.md for exact regex patterns and edge cases per module.
 
@@ -138,7 +170,7 @@ When invoked with check-only (e.g., from `*health` pipeline):
 ## Edge Cases
 
 - **Commented modules**: Skip commented-out module blocks. Note in output.
-- **Multi-instance modules**: Multiple module blocks sharing the same `source`. Update ALL instances in `3-gke-package.tf` and the one shared `variables.tf`.
+- **Multi-instance modules**: Multiple module blocks sharing the same `source`. Update ALL instances in the orchestrator file and the one shared variables file.
 - **OCI charts**: Different helm_release pattern — `chart` field contains full OCI URL instead of `repository` + `chart`.
 - **Nightly versions**: Semver parsing needs to handle pre-release suffixes (e.g., `1.81.8-nightly-latest`).
 - **Version in module block comment**: Ignore comments, only update the `install_version` value.

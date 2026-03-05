@@ -1,0 +1,25 @@
+{
+  "name": "awoo-devops",
+  "owner": {
+    "name": "Awoo Platform Team"
+  },
+  "metadata": {
+    "description": "DevOps agents and pipeline skills for Terraform, Helm, Kustomize, and ArgoCD",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "devops",
+      "source": "./",
+      "description": "Two AI-powered DevOps agents (Horus for IaC, Zeus for GitOps) with 20+ automated pipeline commands for Terraform, Helm, Kustomize, and ArgoCD.",
+      "version": "1.1.0",
+      "author": {
+        "name": "Awoo Platform Team"
+      },
+      "license": "MIT",
+      "keywords": ["devops", "terraform", "helm", "kustomize", "argocd", "gitops", "iac", "gke", "security"],
+      "category": "devops",
+      "tags": ["infrastructure", "kubernetes", "ci-cd", "security-scanning", "pipeline"]
+    }
+  ]
+}

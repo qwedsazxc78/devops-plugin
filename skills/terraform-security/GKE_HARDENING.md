@@ -1,6 +1,8 @@
 # GKE Hardening Checklist
 
-Security controls checklist for GKE clusters managed via Terraform. Reference against the cluster configuration file (typically `3-gke.tf`).
+> **Note:** File paths and "Current State" values below are from a reference implementation. The terraform-security skill discovers actual file paths and values dynamically at runtime.
+
+Security controls checklist for GKE clusters managed via Terraform. Reference against the cluster configuration file (discovered by the skill's Step 0a).
 
 ## Network Security
 

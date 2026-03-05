@@ -1,0 +1,118 @@
+name: Plugin CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Structure & Quality Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run plugin structure tests
+        run: bash tests/test-plugin-structure.sh
+
+  changelog:
+    name: Auto Changelog
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: test
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate CHANGELOG from git tags and commits
+        run: |
+          cat > CHANGELOG.md << 'HEADER'
+          # Changelog
+
+          All notable changes to the DevOps Plugin are documented in this file.
+          Auto-generated from git tags and conventional commit messages.
+
+          HEADER
+
+          # Categorize commits by conventional commit prefix
+          categorize_commits() {
+            local range="$1"
+            local feat_lines="" fix_lines="" refactor_lines="" docs_lines="" other_lines=""
+
+            while IFS= read -r line; do
+              [ -z "$line" ] && continue
+              case "$line" in
+                *feat:*|*feat\(*) feat_lines="${feat_lines}\n${line}" ;;
+                *fix:*|*fix\(*)   fix_lines="${fix_lines}\n${line}" ;;
+                *refactor:*|*refactor\(*) refactor_lines="${refactor_lines}\n${line}" ;;
+                *docs:*|*docs\(*|*chore:*|*chore\(*) docs_lines="${docs_lines}\n${line}" ;;
+                *)                other_lines="${other_lines}\n${line}" ;;
+              esac
+            done <<< "$(git log "$range" --pretty=format:"- %s (%h)" --no-merges 2>/dev/null)"
+
+            [ -n "$feat_lines" ] && printf "\n### Added\n%b\n" "$feat_lines" >> CHANGELOG.md
+            [ -n "$fix_lines" ] && printf "\n### Fixed\n%b\n" "$fix_lines" >> CHANGELOG.md
+            [ -n "$refactor_lines" ] && printf "\n### Changed\n%b\n" "$refactor_lines" >> CHANGELOG.md
+            [ -n "$docs_lines" ] && printf "\n### Documentation\n%b\n" "$docs_lines" >> CHANGELOG.md
+            [ -n "$other_lines" ] && printf "\n### Other\n%b\n" "$other_lines" >> CHANGELOG.md
+          }
+
+          # Get all tags sorted by version
+          tags=$(git tag --sort=-version:refname 2>/dev/null | grep '^v')
+
+          if [ -z "$tags" ]; then
+            # No tags — generate from all commits
+            echo "## Unreleased" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            categorize_commits "HEAD"
+          else
+            # Unreleased commits (after latest tag)
+            latest_tag=$(echo "$tags" | head -1)
+            unreleased=$(git log "$latest_tag"..HEAD --pretty=format:"- %s (%h)" --no-merges 2>/dev/null)
+            if [ -n "$unreleased" ]; then
+              echo "## Unreleased" >> CHANGELOG.md
+              categorize_commits "$latest_tag..HEAD"
+              echo "" >> CHANGELOG.md
+            fi
+
+            # Generate changelog per tag
+            prev=""
+            for tag in $tags; do
+              tag_date=$(git log -1 --format=%ai "$tag" 2>/dev/null | cut -d' ' -f1)
+              echo "## $tag ($tag_date)" >> CHANGELOG.md
+
+              if [ -z "$prev" ]; then
+                # Latest tag — commits between this tag and HEAD already handled above
+                # Show commits in this tag vs previous
+                :
+              else
+                categorize_commits "$tag..$prev"
+              fi
+
+              echo "" >> CHANGELOG.md
+              prev="$tag"
+            done
+
+            # Commits before the earliest tag
+            earliest=$(echo "$tags" | tail -1)
+            remaining=$(git log "$earliest" --pretty=format:"- %s (%h)" --no-merges 2>/dev/null)
+            if [ -n "$remaining" ]; then
+              echo "## Initial" >> CHANGELOG.md
+              echo "" >> CHANGELOG.md
+              categorize_commits "$earliest"
+              echo "" >> CHANGELOG.md
+            fi
+          fi
+
+      - name: Commit CHANGELOG if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git diff --cached --quiet || git commit -m "docs: auto-generate CHANGELOG.md"
+          git push || true

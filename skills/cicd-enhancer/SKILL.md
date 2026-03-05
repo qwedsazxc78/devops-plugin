@@ -1,8 +1,17 @@
+---
+name: cicd-enhancer
+description: >
+  Analyzes and improves CI/CD pipelines for Terraform + Helm platforms.
+  Identifies missing stages, recommends quality gates, and generates
+  CI job YAML snippets. Use when improving CI/CD pipelines, adding
+  quality gates, or optimizing build stages.
+---
+
 # CI/CD Enhancer Skill
 
 ## Purpose
 
-Analyzes and improves GitLab CI/CD pipelines for Terraform + Helm platforms. Identifies missing stages, recommends quality gates, and generates CI job YAML snippets.
+Analyzes and improves CI/CD pipelines for Terraform + Helm platforms. Identifies missing stages, recommends quality gates, and generates CI job snippets. Supports multiple CI systems.
 
 ## Activation
 
@@ -12,53 +21,62 @@ This skill activates when the user requests:
 - Pipeline optimization
 - Quality gate configuration
 
+## Step 0: Discover CI System and Pipeline Files
+
+**Do NOT assume a specific CI system.** Auto-detect at runtime:
+
+### 0a: Detect CI System
+Search for CI configuration files in priority order:
+
+| CI System | Detection File(s) |
+|-----------|-------------------|
+| GitLab CI | `.gitlab-ci.yml` |
+| GitHub Actions | `.github/workflows/*.yml` or `.github/workflows/*.yaml` |
+| Jenkins | `Jenkinsfile` or `jenkins/` directory |
+| CircleCI | `.circleci/config.yml` |
+| Azure Pipelines | `azure-pipelines.yml` or `.azure-pipelines/` |
+| Bitbucket Pipelines | `bitbucket-pipelines.yml` |
+
+```bash
+# Auto-detect CI system
+for f in .gitlab-ci.yml Jenkinsfile .circleci/config.yml azure-pipelines.yml bitbucket-pipelines.yml; do [ -f "$f" ] && echo "FOUND: $f"; done
+ls .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null && echo "FOUND: GitHub Actions"
+```
+
+Store the detected system as `<ci-system>` and root config as `<ci-root-file>`.
+
+### 0b: Discover All Pipeline Files
+Find all CI-related files (includes, templates, shared configs):
+
+**GitLab:**
+```bash
+grep -r 'include:' .gitlab-ci.yml | grep 'local:' # Find included files
+find . -name "*-ci.yml" -o -name "*-ci.yaml" | grep -v node_modules
+```
+
+**GitHub Actions:**
+```bash
+ls .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null
+find . -name "action.yml" -o -name "action.yaml" | grep -v node_modules
+```
+
+**Other systems:** Read the root config and follow any include/import directives.
+
+### 0c: Discover Terraform Root
+Use the same discovery as terraform-validate Step 0a to find `<terraform-root>`.
+
+### 0d: Find Existing Variables/Secrets Config
+Look for CI variable definitions, environment configs, and secret references in the discovered pipeline files.
+
 ## Current Pipeline Analysis
 
-### File Structure
-
-```
-.gitlab-ci.yml                            # Root CI config — includes SAST, Secret Detection, app-ci, pr-agent
-application/app-ci.yml                    # Application pipeline (validate → build → deploy)
-ci/terraform-gitlab-ci.yml               # Shared Terraform CI template (included by app-ci.yml)
-ci/pr-agent-gitlab-ci.yml                # PR agent CI template (included by root .gitlab-ci.yml)
-```
-
-The root `.gitlab-ci.yml` includes:
-- `Security/SAST.gitlab-ci.yml` (GitLab template)
-- `Security/SAST-IaC.gitlab-ci.yml` (GitLab template — already active at root level)
-- `Security/Secret-Detection.gitlab-ci.yml` (GitLab template)
-- `application/app-ci.yml` (application Terraform pipeline)
-- `ci/pr-agent-gitlab-ci.yml` (PR review agent)
-
-### Current Stages
-
-From `app-ci.yml`:
-
-| Stage | Job Name | Trigger | Environment |
-|-------|----------|---------|-------------|
-| Validate | `app-validate` | All branches | — |
-| Build | `app-build` | After validate | — |
-| Deploy Dev | `app-deploy-dev` | Auto on `dev`, `dev-dr` | dev |
-| Deploy Stg | `app-deploy-stg` | Auto on `stg` | stg |
-| Deploy Prd | `app-deploy-prd` | Manual on `prd`, `prd-dr` | prd |
-| Cleanup | `app-cleanup` | Manual | — |
-
-### Current Variables
-
-```yaml
-TF_ROOT: ${CI_PROJECT_DIR}/application
-TF_VAR_WORKSPACE_ENV: ${CI_COMMIT_BRANCH}
-TF_VAR_GCP_PROJECT: monitoring-${CI_COMMIT_BRANCH}-de514-ia007  # Cleaned in before_script
-```
-
-### Notable Patterns
-
-- DR branches (`dev-dr`, `prd-dr`) strip `-dr` suffix for GCP project name
-- SAST-IaC template is included at root `.gitlab-ci.yml` level (but commented out in `app-ci.yml`)
-- Security/SAST and Secret-Detection templates are active at root level
-- No explicit lint or cost estimation stages in the application pipeline
-- Production deploy requires manual approval
-- Uses GitLab Terraform templates (`.terraform:validate`, `.terraform:build`, `.terraform:deploy`)
+Read all discovered pipeline files and extract:
+- **Stages/jobs** defined and their triggers
+- **Variables** (CI variables, environment variables, Terraform variables)
+- **Security scanning** already configured (SAST, secret detection, IaC scanning)
+- **Deploy targets** and approval gates
+- **Caching** configuration
+- **Notable patterns** (DR branches, manual gates, template usage)
 
 ## Workflow
 
@@ -66,24 +84,32 @@ TF_VAR_GCP_PROJECT: monitoring-${CI_COMMIT_BRANCH}-de514-ia007  # Cleaned in bef
 
 Compare current pipeline against recommended stages:
 
-| Stage | Status | Priority | Description |
-|-------|--------|----------|-------------|
-| Format check | **Partial** (template exists) | High | `.terraform:fmt` job defined in `ci/terraform-gitlab-ci.yml` but never invoked from `app-ci.yml`. One-line fix: `app-fmt: extends: .terraform:fmt` |
-| Lint | Missing | High | TFLint with GCP rules. `.tflint.hcl` already exists at repo root. |
-| Security scan (IaC) | **Present** (root level) | Low | `Security/SAST-IaC.gitlab-ci.yml` active in root `.gitlab-ci.yml`. Consider adding trivy for additional coverage. |
-| Validate | Present | — | Already exists via `app-validate` |
-| Cost estimation | Missing | Medium | Infracost or similar |
-| Build/Plan | Present | — | Already exists via `app-build`. Caching already configured in shared template. |
-| Drift detection | Missing | Medium | Scheduled plan comparison |
-| Deploy | Present | — | Already exists for dev/stg/prd |
-| Post-deploy verify | Missing | Low | Health check after deploy |
-| Cleanup | Present | — | `app-cleanup` with manual trigger |
+Compare the discovered pipeline against these recommended stages for a Terraform+Helm platform:
 
-**Note:** The root `.gitlab-ci.yml` defines stages: `[validate, test, pr_agent, build, deploy, cleanup]`. Any new stages (e.g., `cost`, `verify`) must be added to this root stages list.
+| Stage | Check For | Priority | Description |
+|-------|-----------|----------|-------------|
+| Format check | `terraform fmt` or equivalent job | High | Auto-formatting validation |
+| Lint | TFLint or equivalent linter job | High | Static analysis with provider rules |
+| Security scan (IaC) | SAST-IaC, tfsec, checkov, trivy | Medium | Infrastructure security scanning |
+| Validate | `terraform validate` job | High | Syntax and consistency validation |
+| Cost estimation | Infracost or similar | Medium | Cost impact analysis |
+| Build/Plan | `terraform plan` job | High | Plan generation with caching |
+| Drift detection | Scheduled plan comparison | Medium | Detect out-of-band changes |
+| Deploy | `terraform apply` jobs per env | High | Environment-specific deployment |
+| Post-deploy verify | Health check after deploy | Low | Smoke test or readiness probe |
+| Cleanup | Manual destroy capability | Low | Resource cleanup |
+
+For each stage, report: **Present**, **Partial** (exists but not invoked/incomplete), or **Missing**.
+
+**Note:** If the root CI config defines a stages list, any new stages must be added there.
 
 ### Step 2: Generate CI Job Snippets
 
-For each recommended stage, generate ready-to-use GitLab CI job YAML. See PIPELINE_PATTERNS.md for full snippets.
+For each recommended stage, generate ready-to-use CI job snippets for the detected CI system (`<ci-system>`). See PIPELINE_PATTERNS.md for full snippets.
+
+**GitLab CI:** Generate `.gitlab-ci.yml` job definitions using `extends`, `stage`, `script`, `rules`.
+**GitHub Actions:** Generate workflow YAML with `jobs`, `steps`, `uses`, `run`, `if` conditions.
+**Other systems:** Generate equivalent configuration in the appropriate format.
 
 ### Step 3: Quality Gate Definition
 
@@ -108,11 +134,15 @@ Analyze and recommend:
 
 ### Step 5: Generate Updated Pipeline
 
-Produce a complete updated `app-ci.yml` incorporating:
+Produce updated pipeline file(s) for the detected CI system incorporating:
 - All recommended stages
 - Quality gates
 - Optimizations
 - Preserved existing behavior
+
+**GitLab:** Update the application CI file (discovered in Step 0b) and root `.gitlab-ci.yml` stages list if needed.
+**GitHub Actions:** Update or create workflow files in `.github/workflows/`.
+**Other systems:** Update the appropriate configuration file(s).
 
 Present as a diff for user review.
 

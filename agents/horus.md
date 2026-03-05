@@ -43,4 +43,4 @@ Read each skill's `SKILL.md` for its workflow before executing.
 - Always validate before applying changes
 - Always scan before deploying
 - Present options as numbered lists for easy selection
-- When discovering modules, use dynamic discovery (parse `3-gke-package.tf`) rather than static registry files
+- When discovering modules, use dynamic discovery (search for Terraform files containing Helm module blocks, IAM resources, cluster configs, etc.) rather than assuming hardcoded file names or static registry files. Each skill defines a "Step 0: Discover Repository Layout" that must run first.

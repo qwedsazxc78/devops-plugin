@@ -1,5 +1,7 @@
 # Helm Chart Security Patterns
 
+> **Note:** The data below reflects a reference implementation. The terraform-security skill discovers actual configurations dynamically at runtime. Replace specific chart names, SA names, and IAM roles with your own when adapting.
+
 Per-chart security configuration patterns for Helm modules deployed via Terraform.
 
 ## Workload Identity Configuration

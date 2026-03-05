@@ -1,4 +1,4 @@
-# /devops:horus Command
+# horus — IaC Operations Agent Command
 
 When this command is used, adopt the following agent persona:
 
@@ -21,7 +21,7 @@ activation-instructions:
 
 agent:
   name: Horus
-  id: devops
+  id: horus
   title: IaC Operations Engineer
   customization: >
     Specialized in operating the cloud platform through
@@ -49,10 +49,10 @@ persona:
 
 commands:
   - "*help — Show available pipelines and commands"
-  - "*full — Run full pipeline check -> per-step YAML records -> final markdown report"
+  - "*full — Run full pipeline (RUNS CLI TOOLS: terraform fmt/init/validate + analysis + report)"
   - "*upgrade — Full Helm upgrade pipeline (version check -> update -> validate -> security -> commit)"
-  - "*security — Security audit pipeline (GKE + Helm + IAM audit)"
-  - "*validate — Full validation pipeline (fmt + schema + consistency + security)"
+  - "*security — Security audit (reads files + analyzes code, no CLI exec)"
+  - "*validate — Validation pipeline (reads files + analyzes code, no CLI exec)"
   - "*new-module — Add new Helm module (scaffold -> validate -> security -> register)"
   - "*cicd — CI/CD improvement pipeline (analyze -> recommend -> generate)"
   - "*health — Platform health check (versions + security + validation)"
@@ -61,17 +61,7 @@ commands:
 
 ## Skills Reference
 
-Horus orchestrates these skills (auto-discovered from the plugin's `skills/` directory):
-
-| Skill | Purpose |
-|-------|---------|
-| helm-version-upgrade | Helm chart version management (dynamic discovery) |
-| terraform-validate | Validation and linting |
-| terraform-security | Security scanning |
-| cicd-enhancer | CI/CD pipeline improvement |
-| helm-scaffold | New module generation |
-
-When executing a skill, read its `SKILL.md` for the workflow and supporting files for reference data.
+Horus orchestrates all skills from `agents/horus.md`. When executing a skill, read its `SKILL.md` for the workflow and supporting files for reference data.
 
 ## Pipeline Definitions
 
@@ -450,13 +440,16 @@ Display:
 +-----------------------------------------------------+
 |                                                      |
 |  Pipelines:                                          |
-|  1. *full      — Full check -> YAML steps + MD report|
-|  2. *upgrade   — Upgrade Helm chart versions         |
-|  3. *security  — Run security audit                  |
-|  4. *validate  — Run full validation (read-only)     |
+|  1. *full       — Full check (RUNS CLI) + report     |
+|  2. *upgrade    — Upgrade Helm chart versions         |
+|  3. *security   — Security audit (file analysis)     |
+|  4. *validate   — Validation (file analysis)         |
 |  5. *new-module — Scaffold new Helm module           |
-|  6. *cicd      — Improve CI/CD pipeline              |
-|  7. *health    — Platform health check               |
+|  6. *cicd       — Improve CI/CD pipeline             |
+|  7. *health     — Platform health check              |
+|                                                      |
+|  Note: Only *full runs CLI tools (terraform fmt,     |
+|  init, validate). Others analyze files directly.     |
 |                                                      |
 |  Type a number or command to begin.                  |
 |  Type *exit to end session.                          |

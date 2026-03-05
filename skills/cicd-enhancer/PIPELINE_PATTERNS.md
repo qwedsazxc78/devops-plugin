@@ -216,13 +216,13 @@ include:
   # SAST-IaC is already included at root .gitlab-ci.yml level — do not duplicate
 
 variables:
-  TF_ROOT: ${CI_PROJECT_DIR}/application
+  TF_ROOT: ${CI_PROJECT_DIR}/application      # Adjust to your Terraform root
   TF_VAR_GITLAB_ACCESS_TOKEN: ${GITLAB_ACCESS_TOKEN}
-  TF_VAR_PROJECT_ID: "488"
+  TF_VAR_PROJECT_ID: "${CI_PROJECT_ID}"        # Your GitLab project ID
   TF_VAR_WORKSPACE_ENV: ${CI_COMMIT_BRANCH}
-  TF_VAR_GCP_PROJECT: ${GCP_PROJECT_PREFIX}-${CI_COMMIT_BRANCH}  # Customize per project
-  TF_VAR_GITLB_RUNNER_TOKEN: ${GITLB_RUNNER_TOKEN}
-  TF_STATE_NAME: ${GCP_PROJECT_PREFIX}-${CI_COMMIT_BRANCH}  # Customize per project
+  TF_VAR_GCP_PROJECT: ${YOUR_GCP_PROJECT_PREFIX}-${CI_COMMIT_BRANCH}
+  TF_VAR_RUNNER_TOKEN: ${RUNNER_TOKEN}         # Your runner registration token
+  TF_STATE_NAME: ${YOUR_GCP_PROJECT_PREFIX}-${CI_COMMIT_BRANCH}
 
 before_script:
   - export CLEAN_BRANCH=$(echo "${GCP_PROJECT_PREFIX}-${CI_COMMIT_BRANCH}" | sed 's/-dr//')
