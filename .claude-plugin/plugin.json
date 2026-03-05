@@ -1,0 +1,14 @@
+{
+  "name": "devops",
+  "description": "DevOps operations agents for Infrastructure-as-Code. Includes Horus (IaC Operations Engineer) for Terraform + Helm + GKE management with automated pipelines.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Awoo Platform Team"
+  },
+  "homepage": "https://github.com/anthropics/claude-code-plugins",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anthropics/claude-code-plugins"
+  },
+  "license": "MIT"
+}
