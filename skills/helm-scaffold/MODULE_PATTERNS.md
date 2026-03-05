@@ -1,6 +1,6 @@
 # Module Patterns
 
-Five documented patterns for Helm modules in eye-of-horus, with reference implementations.
+Five documented patterns for Helm modules managed via Terraform, with reference implementations.
 
 ## Pattern 1: Simple
 

@@ -1,6 +1,6 @@
 # GKE Hardening Checklist
 
-Security controls for the eye-of-horus GKE cluster. Based on actual settings from `application/3-gke.tf`.
+Security controls checklist for GKE clusters managed via Terraform. Reference against the cluster configuration file (typically `3-gke.tf`).
 
 ## Network Security
 

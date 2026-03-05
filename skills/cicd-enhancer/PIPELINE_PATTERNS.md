@@ -1,6 +1,6 @@
 # Pipeline Patterns
 
-Ready-to-use GitLab CI job YAML snippets for the eye-of-horus pipeline.
+Ready-to-use GitLab CI job YAML snippets for Terraform + Helm pipelines.
 
 ## Recommended Pipeline Stages
 
@@ -118,7 +118,7 @@ app-cost-estimate:
     name: infracost/infracost:ci-latest
     entrypoint: [""]
   before_script:
-    - export CLEAN_BRANCH=$(echo "monitoring-${CI_COMMIT_BRANCH}-de514-ia007" | sed 's/-dr//')
+    - export CLEAN_BRANCH=$(echo "${GCP_PROJECT_PREFIX}-${CI_COMMIT_BRANCH}" | sed 's/-dr//')
     - export TF_VAR_GCP_PROJECT=${CLEAN_BRANCH}
   script:
     - cd ${TF_ROOT}
@@ -160,8 +160,8 @@ app-verify:
   stage: verify
   image: google/cloud-sdk:slim
   script:
-    - export CLEAN_BRANCH=$(echo "monitoring-${CI_COMMIT_BRANCH}-de514-ia007" | sed 's/-dr//')
-    - gcloud container clusters get-credentials "eye-of-horus-${CI_COMMIT_BRANCH}" --region $(gcloud config get-value compute/region) --project ${CLEAN_BRANCH}
+    - export CLEAN_BRANCH=$(echo "${GCP_PROJECT_PREFIX}-${CI_COMMIT_BRANCH}" | sed 's/-dr//')
+    - gcloud container clusters get-credentials "${CLUSTER_NAME}-${CI_COMMIT_BRANCH}" --region $(gcloud config get-value compute/region) --project ${CLEAN_BRANCH}
     - kubectl get nodes -o wide
     - kubectl get pods --all-namespaces | grep -v Running | grep -v Completed || true
     - echo "Cluster health check complete"
@@ -220,12 +220,12 @@ variables:
   TF_VAR_GITLAB_ACCESS_TOKEN: ${GITLAB_ACCESS_TOKEN}
   TF_VAR_PROJECT_ID: "488"
   TF_VAR_WORKSPACE_ENV: ${CI_COMMIT_BRANCH}
-  TF_VAR_GCP_PROJECT: monitoring-${CI_COMMIT_BRANCH}-de514-ia007
+  TF_VAR_GCP_PROJECT: ${GCP_PROJECT_PREFIX}-${CI_COMMIT_BRANCH}  # Customize per project
   TF_VAR_GITLB_RUNNER_TOKEN: ${GITLB_RUNNER_TOKEN}
-  TF_STATE_NAME: monitoring-${CI_COMMIT_BRANCH}-de514-ia007
+  TF_STATE_NAME: ${GCP_PROJECT_PREFIX}-${CI_COMMIT_BRANCH}  # Customize per project
 
 before_script:
-  - export CLEAN_BRANCH=$(echo "monitoring-${CI_COMMIT_BRANCH}-de514-ia007" | sed 's/-dr//')
+  - export CLEAN_BRANCH=$(echo "${GCP_PROJECT_PREFIX}-${CI_COMMIT_BRANCH}" | sed 's/-dr//')
   - export TF_VAR_GCP_PROJECT=${CLEAN_BRANCH}
   - echo $TF_VAR_GCP_PROJECT
   - echo $TF_VAR_WORKSPACE_ENV

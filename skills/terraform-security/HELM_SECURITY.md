@@ -1,6 +1,6 @@
 # Helm Chart Security Patterns
 
-Per-chart security configuration for all active Helm modules in eye-of-horus.
+Per-chart security configuration patterns for Helm modules deployed via Terraform.
 
 ## Workload Identity Configuration
 

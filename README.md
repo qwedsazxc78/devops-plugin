@@ -10,23 +10,58 @@ The all-seeing guardian of infrastructure integrity. Pipeline-driven, safety-fir
 
 ## Installation
 
-### Local development
+### Option 1: From Marketplace (recommended)
 
-```bash
-claude --plugin-dir ./devops-plugin
 ```
-
-### From marketplace
-
-```bash
-# After marketplace publication
 /plugin install devops
 ```
 
-## Usage
+The plugin auto-updates when new versions are published to the marketplace.
+
+### Option 2: From Git Repository
+
+```bash
+# Clone the plugin
+git clone https://github.com/<org>/devops-plugin.git
+
+# Run Claude Code with the plugin
+claude --plugin-dir ./devops-plugin
+```
+
+### Option 3: Project-level (shared with team)
+
+Add to your project's `.claude/plugins.json`:
+
+```json
+{
+  "plugins": [
+    {
+      "name": "devops",
+      "source": "marketplace"
+    }
+  ]
+}
+```
+
+Or for Git-based installation, add to `.claude/plugins.json`:
+
+```json
+{
+  "plugins": [
+    {
+      "name": "devops",
+      "source": "git",
+      "url": "https://github.com/<org>/devops-plugin.git"
+    }
+  ]
+}
+```
+
+## Quick Start
 
 ```
 /devops:horus          # Start Horus agent
+*help                  # Show available pipelines
 ```
 
 ### Horus Pipelines
@@ -59,6 +94,25 @@ claude --plugin-dir ./devops-plugin
   - `3-gke-package.tf` — Helm deployments as modules
   - `modules/helm/*/` — Individual Helm chart modules
   - `modules/helm/helm_install.md` — Manual install docs
+
+## Updating
+
+### Marketplace installs
+
+Auto-updates are handled by Claude Code. New versions are picked up automatically.
+
+To check your current version:
+```
+/plugin list
+```
+
+### Git-based installs
+
+```bash
+cd devops-plugin && git pull
+```
+
+Restart Claude Code to pick up changes.
 
 ## Design Principles
 

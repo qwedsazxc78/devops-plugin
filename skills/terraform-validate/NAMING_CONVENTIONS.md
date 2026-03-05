@@ -1,6 +1,6 @@
 # Naming Conventions
 
-Patterns extracted from the existing eye-of-horus codebase. Use these as the baseline for naming convention audits.
+Reference naming patterns for Terraform + Helm codebases. Use these as the baseline for naming convention audits.
 
 ## File Naming
 

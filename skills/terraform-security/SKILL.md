@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Security auditing for the eye-of-horus GKE platform. Covers GKE cluster hardening, Terraform code scanning, Helm chart security review, and CIS benchmark alignment.
+Security auditing for GKE platforms managed via Terraform + Helm. Covers GKE cluster hardening, Terraform code scanning, Helm chart security review, and CIS benchmark alignment.
 
 ## Activation
 
@@ -17,7 +17,7 @@ This skill activates when the user requests:
 
 ### Step 1: GKE Cluster Security Audit
 
-Analyze `application/3-gke.tf` against the GKE_HARDENING.md checklist:
+Analyze the GKE cluster configuration file (typically `3-gke.tf`) against the GKE_HARDENING.md checklist:
 
 1. **Network Security**
    - Private cluster configuration (enable_private_nodes, enable_private_endpoint)
@@ -46,7 +46,7 @@ Report each finding with severity (Critical/High/Medium/Low/Info) and remediatio
 
 ### Step 2: Terraform Code Security Scan
 
-Scan all `.tf` files in `application/` for:
+Scan all `.tf` files in the Terraform root directory for:
 
 1. **Hardcoded Secrets**
    - Search for patterns: `password`, `secret`, `token`, `key`, `credential` in string literals
@@ -116,7 +116,7 @@ Note: `kube-bench` module is deployed for runtime CIS checking. This skill focus
 Generate report using FINDINGS_TEMPLATE.md format:
 
 ```
-## Security Audit Report — eye-of-horus
+## Security Audit Report
 
 ### Summary
 - Critical: N

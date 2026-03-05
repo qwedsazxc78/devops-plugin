@@ -2,7 +2,7 @@
 
 Exact patterns for finding and replacing version strings in each of the 3 files. Used by the helm-version-upgrade skill for atomic updates.
 
-## File 1: `application/3-gke-package.tf`
+## File 1: `3-gke-package.tf`
 
 ### Standard Module Block Pattern
 
@@ -70,7 +70,7 @@ module "gitlb_runner_env" {
 
 Handle non-standard semver. The full string including suffix is the version.
 
-## File 2: `application/modules/helm/<name>/variable(s).tf`
+## File 2: `modules/helm/<name>/variable(s).tf`
 
 ### Standard Variable Block Pattern
 
@@ -81,7 +81,7 @@ variable "install_version" {
 }
 ```
 
-**Find pattern:** In the file specified by CHART_REGISTRY.md (`variable.tf` or `variables.tf`), locate the `install_version` variable block and its `default` value.
+**Find pattern:** Check if `variable.tf` exists (singular); if not, use `variables.tf` (plural). Locate the `install_version` variable block and its `default` value.
 
 **Replace with:** `default = "<new_version>"`
 
@@ -114,7 +114,7 @@ variable "install_version" {
 }
 ```
 
-## File 3: `application/modules/helm/helm_install.md`
+## File 3: `modules/helm/helm_install.md`
 
 ### Standard Helm Command Pattern
 

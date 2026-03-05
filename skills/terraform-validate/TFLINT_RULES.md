@@ -1,6 +1,6 @@
 # TFLint Rules
 
-Recommended TFLint configuration for the eye-of-horus GKE platform.
+Recommended TFLint configuration for GKE platforms managed via Terraform.
 
 ## Current Status
 

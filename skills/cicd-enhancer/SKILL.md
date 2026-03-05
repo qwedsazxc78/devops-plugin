@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Analyzes and improves the GitLab CI/CD pipeline for the eye-of-horus platform. Identifies missing stages, recommends quality gates, and generates CI job YAML snippets.
+Analyzes and improves GitLab CI/CD pipelines for Terraform + Helm platforms. Identifies missing stages, recommends quality gates, and generates CI job YAML snippets.
 
 ## Activation
 

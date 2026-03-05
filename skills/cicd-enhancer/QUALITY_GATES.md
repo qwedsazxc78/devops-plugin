@@ -1,6 +1,6 @@
 # Quality Gates
 
-Defines what blocks deployment vs. what only warns for the eye-of-horus CI/CD pipeline.
+Defines what blocks deployment vs. what only warns for Terraform + Helm CI/CD pipelines.
 
 ## Gate Definitions
 
