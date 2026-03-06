@@ -67,17 +67,30 @@ pip3 install yamllint checkov pre-commit
 <summary><b>Windows (WSL2)</b></summary>
 
 ```bash
-# Use WSL2 with Ubuntu, then follow Linux instructions
+# 1. Install WSL2 with Ubuntu (run in PowerShell as Admin)
 wsl --install -d Ubuntu
 
-# Inside WSL2
-sudo apt-get update && sudo apt-get install -y git jq
+# 2. Inside WSL2 — core tools via apt/snap
+sudo apt-get update && sudo apt-get install -y git jq python3-pip
+sudo snap install kubectl --classic
+sudo snap install kustomize terraform --classic
+
+# 3. Python tools
 pip3 install yamllint checkov pre-commit
 
-# Install Homebrew for Linux (for remaining tools)
+# 4. Install Homebrew for Linux (for tools not in apt/snap)
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew install kustomize kubeconform terraform
+
+# 5. Remaining tools via Homebrew
+# GitOps (Zeus)
+brew install kubeconform kube-score kube-linter trivy gitleaks
+brew install FairwindsOps/tap/polaris FairwindsOps/tap/pluto conftest
+
+# IaC (Horus)
+brew install tflint tfsec
 ```
+
+> **Note:** If `snap` is unavailable (older WSL2 without systemd), use Homebrew for Linux for all tools.
 
 </details>
 

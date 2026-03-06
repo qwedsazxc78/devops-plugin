@@ -132,14 +132,21 @@ pip3 install yamllint checkov
 pip3 install pre-commit checkov
 ```
 
-#### apt (Debian/Ubuntu)
+#### apt/snap (Debian/Ubuntu/WSL2)
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y git jq
+sudo apt-get install -y git jq python3-pip
 sudo snap install kubectl --classic
-sudo snap install kustomize yq
+sudo snap install kustomize yq terraform --classic
+
+# For tools not in apt/snap, install Homebrew for Linux:
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew install kubeconform kube-score kube-linter trivy gitleaks tflint tfsec
+brew install FairwindsOps/tap/polaris FairwindsOps/tap/pluto conftest
 ```
+
+> **WSL2 note:** If `snap` is unavailable (older WSL2 without systemd), use Homebrew for Linux for all tools.
 
 ### Tool summary
 

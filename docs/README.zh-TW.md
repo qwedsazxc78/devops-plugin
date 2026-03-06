@@ -64,9 +64,30 @@ pip3 install yamllint checkov pre-commit
 <summary><b>Windows (WSL2)</b></summary>
 
 ```bash
-# 使用 WSL2 搭配 Ubuntu，然後依照 Linux 指示操作
+# 1. 安裝 WSL2 搭配 Ubuntu（以管理員身分在 PowerShell 中執行）
 wsl --install -d Ubuntu
+
+# 2. 在 WSL2 中 — 透過 apt/snap 安裝基礎工具
+sudo apt-get update && sudo apt-get install -y git jq python3-pip
+sudo snap install kubectl --classic
+sudo snap install kustomize terraform --classic
+
+# 3. Python 工具
+pip3 install yamllint checkov pre-commit
+
+# 4. 安裝 Homebrew for Linux（用於 apt/snap 未提供的工具）
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# 5. 透過 Homebrew 安裝其餘工具
+# GitOps (Zeus)
+brew install kubeconform kube-score kube-linter trivy gitleaks
+brew install FairwindsOps/tap/polaris FairwindsOps/tap/pluto conftest
+
+# IaC (Horus)
+brew install tflint tfsec
 ```
+
+> **注意：** 如果 `snap` 無法使用（較舊的 WSL2 未啟用 systemd），請使用 Homebrew for Linux 安裝所有工具。
 
 </details>
 

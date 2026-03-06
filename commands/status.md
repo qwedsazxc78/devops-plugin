@@ -35,50 +35,54 @@ Filter by $ARGUMENTS: if `zeus`, skip Horus-only tools. If `horus`, skip Zeus-on
 
 #### Tool Registry
 
+Each tool lists install commands for macOS (brew), Linux/WSL2 (apt/snap or brew), and pip. Use the platform detected in Step 1.
+
 **Shared (required for both agents):**
 
-| Tool | Version Command | brew | apt | pip |
-|------|----------------|------|-----|-----|
-| git | `git --version` | `brew install git` | `apt-get install -y git` | — |
-| kubectl | `kubectl version --client` | `brew install kubectl` | `snap install kubectl --classic` | — |
-| jq | `jq --version` | `brew install jq` | `apt-get install -y jq` | — |
-| yq | `yq --version` | `brew install yq` | `snap install yq` | — |
+| Tool | Version Command | brew (macOS) | apt/snap (Linux/WSL2) | pip |
+|------|----------------|-------------|----------------------|-----|
+| git | `git --version` | `brew install git` | `sudo apt-get install -y git` | — |
+| kubectl | `kubectl version --client` | `brew install kubectl` | `sudo snap install kubectl --classic` | — |
+| jq | `jq --version` | `brew install jq` | `sudo apt-get install -y jq` | — |
+| yq | `yq --version` | `brew install yq` | `sudo snap install yq` | — |
 
 **Horus — IaC (required):**
 
-| Tool | Version Command | brew | pip |
-|------|----------------|------|-----|
-| terraform | `terraform version` | `brew install terraform` | — |
+| Tool | Version Command | brew (macOS) | apt/snap (Linux/WSL2) | pip |
+|------|----------------|-------------|----------------------|-----|
+| terraform | `terraform version` | `brew install terraform` | `sudo snap install terraform --classic` | — |
 
 **Horus — IaC (recommended):**
 
-| Tool | Version Command | brew | pip |
-|------|----------------|------|-----|
-| tflint | `tflint --version` | `brew install tflint` | — |
-| tfsec | `tfsec --version` | `brew install tfsec` | — |
-| pre-commit | `pre-commit --version` | — | `pip3 install pre-commit` |
+| Tool | Version Command | brew (macOS) | apt/snap (Linux/WSL2) | pip |
+|------|----------------|-------------|----------------------|-----|
+| tflint | `tflint --version` | `brew install tflint` | `brew install tflint` | — |
+| tfsec | `tfsec --version` | `brew install tfsec` | `brew install tfsec` | — |
+| pre-commit | `pre-commit --version` | — | — | `pip3 install pre-commit` |
 
 **Zeus — GitOps (required):**
 
-| Tool | Version Command | brew | pip |
-|------|----------------|------|-----|
-| kustomize | `kustomize version` | `brew install kustomize` | — |
+| Tool | Version Command | brew (macOS) | apt/snap (Linux/WSL2) | pip |
+|------|----------------|-------------|----------------------|-----|
+| kustomize | `kustomize version` | `brew install kustomize` | `sudo snap install kustomize` | — |
 
 **Zeus — GitOps (recommended):**
 
-| Tool | Version Command | brew | pip |
-|------|----------------|------|-----|
-| yamllint | `yamllint --version` | — | `pip3 install yamllint` |
-| kubeconform | `kubeconform -v` | `brew install kubeconform` | — |
-| kube-score | `kube-score version` | `brew install kube-score` | — |
-| kube-linter | `kube-linter version` | `brew install kube-linter` | — |
-| polaris | `polaris version` | `brew install FairwindsOps/tap/polaris` | — |
-| pluto | `pluto version` | `brew install FairwindsOps/tap/pluto` | — |
-| conftest | `conftest --version` | `brew install conftest` | — |
-| checkov | `checkov --version` | — | `pip3 install checkov` |
-| trivy | `trivy --version` | `brew install trivy` | — |
-| gitleaks | `gitleaks version` | `brew install gitleaks` | — |
-| d2 | `d2 --version` | `brew install d2` | — |
+| Tool | Version Command | brew (macOS) | apt/snap (Linux/WSL2) | pip |
+|------|----------------|-------------|----------------------|-----|
+| yamllint | `yamllint --version` | — | — | `pip3 install yamllint` |
+| kubeconform | `kubeconform -v` | `brew install kubeconform` | `brew install kubeconform` | — |
+| kube-score | `kube-score version` | `brew install kube-score` | `brew install kube-score` | — |
+| kube-linter | `kube-linter version` | `brew install kube-linter` | `brew install kube-linter` | — |
+| polaris | `polaris version` | `brew install FairwindsOps/tap/polaris` | `brew install FairwindsOps/tap/polaris` | — |
+| pluto | `pluto version` | `brew install FairwindsOps/tap/pluto` | `brew install FairwindsOps/tap/pluto` | — |
+| conftest | `conftest --version` | `brew install conftest` | `brew install conftest` | — |
+| checkov | `checkov --version` | — | — | `pip3 install checkov` |
+| trivy | `trivy --version` | `brew install trivy` | `sudo snap install trivy` | — |
+| gitleaks | `gitleaks version` | `brew install gitleaks` | `brew install gitleaks` | — |
+| d2 | `d2 --version` | `brew install d2` | `brew install d2` | — |
+
+> **Linux/WSL2 note:** Many tools show `brew install` for Linux because they are not in apt/snap repos. Homebrew works on Linux/WSL2 — install it first if missing (see Graceful Degradation below).
 
 ### Step 3: Present Results
 
@@ -141,7 +145,9 @@ Missing tools detected. Would you like to install them?
   4. Skip — I'll install manually
 ```
 
-If user chooses 1-3, generate **grouped install commands** by package manager and run them:
+If user chooses 1-3, generate **grouped install commands** by the detected platform's package manager and run them:
+
+**macOS (brew detected):**
 
 ```bash
 # Homebrew (batch — fast)
@@ -151,7 +157,35 @@ brew install tfsec kubeconform d2
 pip3 install yamllint checkov
 ```
 
-IMPORTANT: Group all brew installs into one command and all pip installs into one command for speed. Do NOT install one tool at a time.
+**Linux/WSL2 (apt detected, brew available):**
+
+```bash
+# apt/snap first (for tools that have native packages)
+sudo apt-get install -y git jq
+sudo snap install kubectl --classic terraform --classic kustomize trivy
+
+# Homebrew for Linux (tools without apt/snap packages)
+brew install kubeconform kube-score kube-linter gitleaks d2
+
+# pip (batch — fast)
+pip3 install yamllint checkov pre-commit
+```
+
+**Linux/WSL2 (apt detected, NO brew):**
+
+```bash
+# apt/snap
+sudo apt-get install -y git jq
+sudo snap install kubectl --classic terraform --classic kustomize trivy
+
+# pip
+pip3 install yamllint checkov pre-commit
+
+# For remaining tools (kubeconform, kube-score, etc.), recommend installing Homebrew for Linux:
+# /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+IMPORTANT: Group all brew installs into one command, all apt installs into one, all snap into one, and all pip installs into one command for speed. Do NOT install one tool at a time.
 
 ### Step 5: Verify After Install
 
@@ -174,9 +208,12 @@ Show updated status for each:
 ### Graceful Degradation
 
 - This command runs `command -v` directly — it does NOT require `scripts/install-tools.sh`
-- If Homebrew is not installed, show: `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
-- If pip is not installed, show: `python3 -m ensurepip --upgrade`
-- If both are missing, show all install commands as reference — user can install their preferred way
+- **Platform detection**: Use `uname -s` to detect Darwin (macOS) vs Linux (includes WSL2). To detect WSL2 specifically, check: `grep -qi microsoft /proc/version 2>/dev/null`
+- **macOS without Homebrew**: Show `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
+- **Linux/WSL2 without Homebrew**: First use apt/snap for tools that have native packages. For remaining tools, recommend installing Homebrew for Linux: `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
+- **Without pip**: Show `python3 -m ensurepip --upgrade` (macOS/Linux) or `sudo apt-get install python3-pip` (Debian/Ubuntu/WSL2)
+- **WSL2 users**: Note that `snap` requires systemd; if snap is unavailable, fall back to Homebrew for Linux or direct binary downloads
+- If all package managers are missing, show all install commands as reference — user can install their preferred way
 - Required tools missing → show as ERROR (these will block pipelines)
 - Recommended tools missing → show as WARN (pipelines will skip those checks)
 - Never block — always show the full status table
