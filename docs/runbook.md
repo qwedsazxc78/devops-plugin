@@ -119,24 +119,23 @@ brew install conftest trivy gitleaks
 brew install terraform tflint tfsec
 ```
 
-#### pip (Python tools)
+#### Python tools (uv recommended)
 
 ```bash
-# Ensure pip is available
+# Option A: uv (fast — recommended)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv tool install yamllint checkov pre-commit
+
+# Option B: pip (fallback)
 python3 -m ensurepip --upgrade
-
-# Zeus tools
-pip3 install yamllint checkov
-
-# Horus tools
-pip3 install pre-commit checkov
+pip3 install yamllint checkov pre-commit
 ```
 
 #### apt/snap (Debian/Ubuntu/WSL2)
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y git jq python3-pip
+sudo apt-get install -y git jq
 sudo snap install kubectl --classic
 sudo snap install kustomize yq terraform --classic
 
@@ -150,27 +149,27 @@ brew install FairwindsOps/tap/polaris FairwindsOps/tap/pluto conftest
 
 ### Tool summary
 
-| Tool | Agent | Tier | macOS | Linux | pip |
-|------|-------|------|-------|-------|-----|
+| Tool | Agent | Tier | macOS | Linux | uv / pip |
+|------|-------|------|-------|-------|----------|
 | git | Shared | Required | brew | apt | - |
 | kubectl | Shared | Required | brew | snap | - |
 | jq | Shared | Required | brew | apt | - |
 | yq | Shared | Recommended | brew | snap | - |
 | kustomize | Zeus | Required | brew | snap | - |
-| yamllint | Zeus | Recommended | - | - | pip |
+| yamllint | Zeus | Recommended | - | - | uv / pip |
 | kubeconform | Zeus | Recommended | brew | - | - |
 | kube-score | Zeus | Recommended | brew | - | - |
 | kube-linter | Zeus | Recommended | brew | - | - |
 | polaris | Zeus | Recommended | brew | - | - |
 | pluto | Zeus | Recommended | brew | - | - |
 | conftest | Zeus | Recommended | brew | - | - |
-| checkov | Both | Recommended | - | - | pip |
-| trivy | Zeus | Recommended | brew | - | - |
+| checkov | Both | Recommended | - | - | uv / pip |
+| trivy | Zeus | Recommended | brew | snap | - |
 | gitleaks | Zeus | Recommended | brew | - | - |
-| terraform | Horus | Required | brew | - | - |
+| terraform | Horus | Required | brew | snap | - |
 | tflint | Horus | Recommended | brew | - | - |
 | tfsec | Horus | Recommended | brew | - | - |
-| pre-commit | Horus | Recommended | - | - | pip |
+| pre-commit | Horus | Recommended | - | - | uv / pip |
 
 **Note:** All skills gracefully degrade when recommended tools are missing — they skip the check and show the install command. Only _required_ tools block execution.
 

@@ -36,12 +36,16 @@ brew install git kubectl jq yq
 # GitOps (Zeus)
 brew install kustomize kubeconform kube-score kube-linter trivy gitleaks
 brew install FairwindsOps/tap/polaris FairwindsOps/tap/pluto conftest
-pip3 install yamllint checkov
 
 # IaC (Horus)
 brew install terraform tflint tfsec
-pip3 install pre-commit
+
+# Python tools (pick one)
+uv tool install yamllint checkov pre-commit   # fast — recommended
+# or: pip3 install yamllint checkov pre-commit
 ```
+
+> **Tip:** Install [uv](https://docs.astral.sh/uv/) for faster Python tool management: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 
 </details>
 
@@ -54,8 +58,9 @@ sudo apt-get update && sudo apt-get install -y git jq
 sudo snap install kubectl --classic
 sudo snap install kustomize yq
 
-# Python tools
-pip3 install yamllint checkov pre-commit
+# Python tools (pick one)
+uv tool install yamllint checkov pre-commit   # fast — recommended
+# or: pip3 install yamllint checkov pre-commit
 
 # Other tools — install via binary releases or Homebrew for Linux
 # See docs/runbook.md for detailed instructions
@@ -71,12 +76,14 @@ pip3 install yamllint checkov pre-commit
 wsl --install -d Ubuntu
 
 # 2. Inside WSL2 — core tools via apt/snap
-sudo apt-get update && sudo apt-get install -y git jq python3-pip
+sudo apt-get update && sudo apt-get install -y git jq
 sudo snap install kubectl --classic
 sudo snap install kustomize terraform --classic
 
-# 3. Python tools
-pip3 install yamllint checkov pre-commit
+# 3. Python tools (pick one)
+curl -LsSf https://astral.sh/uv/install.sh | sh  # install uv first
+uv tool install yamllint checkov pre-commit        # fast — recommended
+# or: pip3 install yamllint checkov pre-commit
 
 # 4. Install Homebrew for Linux (for tools not in apt/snap)
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"

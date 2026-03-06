@@ -36,12 +36,16 @@ brew install git kubectl jq yq
 # GitOps (Zeus)
 brew install kustomize kubeconform kube-score kube-linter trivy gitleaks
 brew install FairwindsOps/tap/polaris FairwindsOps/tap/pluto conftest
-pip3 install yamllint checkov
 
 # IaC (Horus)
 brew install terraform tflint tfsec
-pip3 install pre-commit
+
+# Python 工具（擇一）
+uv tool install yamllint checkov pre-commit   # 快速 — 推薦
+# 或: pip3 install yamllint checkov pre-commit
 ```
+
+> **提示：** 安裝 [uv](https://docs.astral.sh/uv/) 以更快速管理 Python 工具：`curl -LsSf https://astral.sh/uv/install.sh | sh`
 
 </details>
 
@@ -54,8 +58,9 @@ sudo apt-get update && sudo apt-get install -y git jq
 sudo snap install kubectl --classic
 sudo snap install kustomize yq
 
-# Python 工具
-pip3 install yamllint checkov pre-commit
+# Python 工具（擇一）
+uv tool install yamllint checkov pre-commit   # 快速 — 推薦
+# 或: pip3 install yamllint checkov pre-commit
 ```
 
 </details>
@@ -68,12 +73,14 @@ pip3 install yamllint checkov pre-commit
 wsl --install -d Ubuntu
 
 # 2. 在 WSL2 中 — 透過 apt/snap 安裝基礎工具
-sudo apt-get update && sudo apt-get install -y git jq python3-pip
+sudo apt-get update && sudo apt-get install -y git jq
 sudo snap install kubectl --classic
 sudo snap install kustomize terraform --classic
 
-# 3. Python 工具
-pip3 install yamllint checkov pre-commit
+# 3. Python 工具（擇一）
+curl -LsSf https://astral.sh/uv/install.sh | sh  # 先安裝 uv
+uv tool install yamllint checkov pre-commit        # 快速 — 推薦
+# 或: pip3 install yamllint checkov pre-commit
 
 # 4. 安裝 Homebrew for Linux（用於 apt/snap 未提供的工具）
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
