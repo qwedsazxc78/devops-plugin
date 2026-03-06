@@ -68,37 +68,38 @@ Team members will be prompted to install when they trust the project folder.
 
 ## Tool Setup
 
-### Quick start (interactive)
+### Quick start — `/devops:status` (recommended)
 
-```bash
-# From the plugin directory:
-./scripts/install-tools.sh
+The fastest way to check and install tools — works for all installation methods (marketplace, git clone, local):
+
+```
+/devops:status              # Check all tools + offer to install missing
+/devops:status horus        # Horus (IaC) tools only
+/devops:status zeus         # Zeus (GitOps) tools only
 ```
 
 This will:
 1. Detect your platform (macOS/Linux, brew/apt/pip)
-2. Show all tools with install status
-3. Prompt to install missing tools
+2. Check each tool via `command -v`
+3. Show OK/MISSING status with version info
+4. Offer to batch-install missing tools (grouped by `brew` and `pip` for speed)
+5. Re-verify after install
 
-### Check only
+### Alternative — install script (git clone only)
 
-```bash
-./scripts/install-tools.sh check          # All tools
-./scripts/install-tools.sh check zeus     # GitOps tools only
-./scripts/install-tools.sh check horus    # IaC tools only
-```
-
-### Install directly
+If you cloned the plugin repo (not marketplace), you can also use the shell script:
 
 ```bash
-./scripts/install-tools.sh install          # All tools
-./scripts/install-tools.sh install zeus     # GitOps tools only
-./scripts/install-tools.sh install horus    # IaC tools only
+./scripts/install-tools.sh              # Interactive: check + prompt install
+./scripts/install-tools.sh check        # Check only
+./scripts/install-tools.sh install      # Install all missing
+./scripts/install-tools.sh install zeus  # GitOps tools only
+./scripts/install-tools.sh install horus # IaC tools only
 ```
 
 ### Manual installation
 
-If the script fails for specific tools, install them manually:
+If you prefer to install tools manually:
 
 #### Homebrew (macOS/Linux)
 
@@ -170,22 +171,30 @@ sudo snap install kustomize yq
 
 ## Getting Started
 
-### 1. Detect your repo type
+### 1. Check tool installation
+
+```
+/devops:status
+```
+
+Verifies all required and recommended tools are installed. Offers to install missing ones automatically.
+
+### 2. Detect your repo type
 
 ```
 /devops:detect
 ```
 
-This scans the repo for IaC (Terraform) and GitOps (Kustomize) indicators and recommends the right agent.
+Scans the repo for IaC (Terraform) and GitOps (Kustomize) indicators and recommends the right agent.
 
-### 2. Start an agent
+### 3. Start an agent
 
 ```
 /devops:horus     # IaC repos (Terraform + Helm + GKE)
 /devops:zeus      # GitOps repos (Kustomize + ArgoCD)
 ```
 
-### 3. Run a pipeline
+### 4. Run a pipeline
 
 Once inside an agent session, type a pipeline command:
 
@@ -196,7 +205,7 @@ Once inside an agent session, type a pipeline command:
 *exit             # End session
 ```
 
-### 4. Or run individual commands
+### 5. Or run individual commands
 
 You don't need to start an agent to use individual commands:
 
@@ -276,6 +285,7 @@ You don't need to start an agent to use individual commands:
 | Command | Description |
 |---------|-------------|
 | `/devops:detect` | Detect repo type, recommend agent |
+| `/devops:status` | Check tool installation + install missing tools |
 
 ---
 
@@ -364,9 +374,11 @@ ls .claude-plugin/plugin.json  # Must exist
 
 All commands show install instructions when a tool is missing. Run:
 
-```bash
-./scripts/install-tools.sh check
 ```
+/devops:status
+```
+
+This checks all tools and offers to install missing ones. Works with any installation method (marketplace, git clone, local).
 
 ### pip not found
 

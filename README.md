@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/logo.png" alt="DevOps Plugin Logo" width="128">
+</p>
+
 # DevOps Plugin for Claude Code
 
 **English** | [繁體中文](docs/README.zh-TW.md)
@@ -84,13 +88,21 @@ Or use the interactive installer:
 ./scripts/install-tools.sh check    # Check only
 ```
 
-### 3. Detect your repo type
+### 3. Check tool installation
+
+```
+/devops:status              # Check all tools + install missing
+/devops:status horus        # IaC tools only
+/devops:status zeus         # GitOps tools only
+```
+
+### 4. Detect your repo type
 
 ```
 /devops:detect
 ```
 
-### 4. Start an agent
+### 5. Start an agent
 
 ```
 /devops:horus     # IaC repos (Terraform + Helm + GKE)
@@ -133,73 +145,76 @@ Pipeline orchestrator for Kustomize + ArgoCD workflows. Validation, security, sc
 
 ## Example Session
 
-### Zeus (GitOps) — Pre-merge check
+### Zeus (GitOps) — Full Pipeline Check
+
+Activate Zeus and run the `*full` pipeline for a complete GitOps repository validation:
+
+![Zeus Full Pipeline — discovery, tool status, 7-step pipeline with parallel execution](docs/images/zeus-full-pipeline.png)
+
+The `*full` pipeline discovers modules and environments, checks tool availability, then runs 7 steps (pre-commit, validation, security, upgrade check, pipeline audit, diff preview, diagrams) and produces a full report:
+
+> Example report: [`docs/examples/devops-zeus-full-check-2026-03-06.md`](docs/examples/devops-zeus-full-check-2026-03-06.md)
+
+### Horus (IaC) — Full Pipeline Check
+
+Activate Horus and run the `*full` pipeline for a complete infrastructure health check:
+
+![Horus Activation — agent menu and *full pipeline start](docs/images/horus-activation.png)
+
+The `*full` pipeline runs 10 steps (discovery + terraform CLI + file analysis) and produces a dashboard with actionable insights:
+
+![Horus Full Pipeline — results dashboard with insights and next actions](docs/images/horus-full-pipeline.png)
 
 ```
-> /devops:zeus
+  Full Pipeline Complete
 
-┌─────────────────────────────────────────────────┐
-│          Zeus — GitOps Engineer                  │
-│          GitOps Command Center                   │
-├─────────────────────────────────────────────────┤
-│  1. *full         — Full pipeline + YAML/MD     │
-│  2. *pre-merge    — Pre-MR essential checks     │
-│  ...                                            │
-└─────────────────────────────────────────────────┘
+  +-----------------------------------------------------+
+  |         Horus Full Pipeline — 2026-03-06             |
+  +-----------------------------------------------------+
+  |  Overall: NEEDS ATTENTION                            |
+  +-----------------------------------------------------+
+  |  Step 1: Terraform Format        PASS                |
+  |  Step 2: Terraform Init          PASS                |
+  |  Step 3: Terraform Validate      PASS                |
+  |  Step 4: Helm Version Check      FAIL (5 issues)     |
+  |  Step 5: JSON Schema             PASS                |
+  |  Step 6: Module Paths            PASS                |
+  |  Step 7: Env Configs             WARN (litellm DR)   |
+  |  Step 8: Security Scan           WARN (14 findings)  |
+  +-----------------------------------------------------+
 
-Zeus online. What do you need?
+  ★ Insight ─────────────────────────────────────
+  - Step 4 FAIL is cosmetic — TF + variable files are consistent;
+    only helm_install.md is stale for 5 entries. Quick auto-fix available.
+  - Step 7 WARN on litellm is a latent bug — DR workspace deploys
+    will crash on missing file. Creating stub DR configs is critical.
+  - Step 8 — 4 high-severity hardcoded secrets (ArgoCD Slack tokens,
+    Airflow key) are the highest-risk items in version control.
+  ─────────────────────────────────────────────────
 
-> *pre-merge
+  Reports written to:
+  - Step YAMLs: docs/reports/2026-03-06/*.yaml
+  - Summary:    docs/reports/devops-horus-full-check-2026-03-06.md
 
-Step 1/4: [lint] YAML lint + kustomize build
-  Discovering modules... found: app-service, monitoring
-  Discovering environments... found: dev, stg, prd
-
-  | Module     | Env | yamllint | kustomize build | Status |
-  |------------|-----|----------|-----------------|--------|
-  | app-service| dev | PASS     | PASS            | OK     |
-  | app-service| stg | PASS     | PASS            | OK     |
-  | monitoring | dev | PASS     | PASS            | OK     |
-  ...
-
-Step 2/4: [validate] Full validation ... PASS
-Step 3/4: [security-scan] Quick scan ... PASS (0 HIGH)
-Step 4/4: [diff-preview] 3 files changed, risk: LOW
-
-Verdict: READY TO MERGE
+  What would you like to do next?
+  1. Auto-fix helm_install.md (update 2 versions + add 3 missing entries)
+  2. Create litellm DR config stubs
+  3. Deep-dive on security findings
+  4. Something else
 ```
 
-### Horus (IaC) — Helm upgrade
-
-```
-> /devops:horus
-
-┌─────────────────────────────────────────────────┐
-│          Horus — IaC Operations Engineer         │
-│          Cloud Platform Operations               │
-└─────────────────────────────────────────────────┘
-
-> *upgrade
-
-Step 1: Discovering Helm modules...
-  Found 8 modules via dynamic discovery
-
-  | Module   | Current | Latest  | Status   |
-  |----------|---------|---------|----------|
-  | grafana  | 10.5.4  | 10.6.0  | OUTDATED |
-  | argocd   | 9.2.4   | 9.2.4   | OK       |
-  | redis    | 18.6.1  | 19.0.2  | OUTDATED |
-
-  Select modules to upgrade: [1] grafana [2] redis [3] all
-```
+> Example report: [`docs/examples/devops-horus-full-check-2026-03-06.md`](docs/examples/devops-horus-full-check-2026-03-06.md)
 
 ---
 
 ## Commands
 
-### Which agent should I use?
+### Getting Started
 
-Run `/devops:detect` — the plugin scans for IaC (`.tf` files, Helm modules) and GitOps (`kustomization.yaml`, `base/` + `overlays/`) indicators.
+| Command | Usage |
+|---------|-------|
+| `/devops:detect` | Scan repo to determine IaC or GitOps type and recommend agent |
+| `/devops:status` | Check tool installation status + install missing tools |
 
 ### Horus Commands (IaC)
 
@@ -250,6 +265,8 @@ See [`docs/`](docs/) for detailed guides:
 |------|-------------|
 | [`docs/runbook.md`](docs/runbook.md) | Complete runbook: installation, tool setup, agent reference, command reference, common workflows, troubleshooting |
 | [`docs/README.zh-TW.md`](docs/README.zh-TW.md) | Traditional Chinese documentation |
+| [`docs/examples/devops-horus-full-check-2026-03-06.md`](docs/examples/devops-horus-full-check-2026-03-06.md) | Example: Horus `*full` pipeline report |
+| [`docs/examples/devops-zeus-full-check-2026-03-06.md`](docs/examples/devops-zeus-full-check-2026-03-06.md) | Example: Zeus `*full` pipeline report |
 
 ---
 

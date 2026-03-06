@@ -95,7 +95,7 @@ Zeus orchestrates all skills from `agents/zeus.md`. When executing a skill, read
 **Purpose:** Run the complete validation, security, and analysis pipeline. Each step writes a YAML record. Final markdown summary report is generated.
 
 **Step YAML directory:** `docs/reports/YYYY-MM-DD/` (per-step records)
-**Final report:** `docs/reports/zeus-full-check-YYYY-MM-DD.md`
+**Final report:** `docs/reports/devops-zeus-full-check-YYYY-MM-DD.md`
 
 ```
 Pipeline: *full
@@ -138,7 +138,7 @@ Step 7: [diagram] Architecture diagrams
 
 Step 8: [GENERATE] Final Markdown Report
         -> Read all step YAML files
-        -> Aggregate into: docs/reports/zeus-full-check-YYYY-MM-DD.md
+        -> Aggregate into: docs/reports/devops-zeus-full-check-YYYY-MM-DD.md
         -> Failed checks first, warnings second, passed last (collapsed)
         -> Print report path and summary to user
 ```
