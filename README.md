@@ -195,6 +195,58 @@ Step 1: Discovering Helm modules...
 
 ---
 
+## Use Cases — Just Say What You Need
+
+You don't need to memorize commands. Describe your goal in natural language (English or 中文), and the plugin routes to the right pipeline automatically.
+
+### Horus (IaC) Examples
+
+| What you say | Pipeline |
+|---|---|
+| "Scan all Helm chart versions" / 「掃描所有 Helm chart 版本」 | `*upgrade` |
+| "Validate all my Terraform code" / 「驗證所有 Terraform 程式碼」 | `*validate` |
+| "Run a security audit" / 「做一次安全稽核」 | `*security` |
+| "Analyze CI/CD pipeline" / 「分析 CI/CD 流水線」 | `*cicd` |
+| "Add a new Helm module for cert-manager" / 「建立 cert-manager 的 Helm module」 | `*new-module` |
+| "Show platform health dashboard" / 「顯示平台健康儀表板」 | `*health` |
+
+### Zeus (GitOps) Examples
+
+| What you say | Pipeline |
+|---|---|
+| "Check if my changes are ready to merge" / 「我的修改可以合併了嗎？」 | `*pre-merge` |
+| "Scan manifests for security issues" / 「掃描有沒有安全漏洞」 | `*full` (security) |
+| "Help me onboard a new service" / 「幫我上線新服務」 | `*onboard` |
+| "Generate architecture diagram" / 「幫我畫架構圖」 | `*diagram` |
+| "Check for deprecated K8s APIs" / 「檢查棄用的 API」 | `*full` (upgrade-check) |
+| "Preview the deployment diff" / 「預覽部署變更」 | `*full` (diff-preview) |
+
+### Combined Workflows
+
+```
+# Monday morning routine — full platform health check
+User: "Run a complete health check on everything"
+→ Horus *health + Zeus *health-check → consolidated dashboard
+
+# Pre-release checklist
+User: "We're releasing v2.5.0 next week. Make sure everything is ready."
+→ Zeus *full → security scan → diff preview → deprecated API check
+
+# Incident investigation
+User: "Something broke in production. Check what changed recently."
+→ diff-preview → image drift check → change impact diagram
+
+# New team member onboarding
+User: "A new developer is joining. Help them understand our infra."
+→ /devops:detect → tool status → architecture diagram → health dashboard
+```
+
+> **Tips:** Be specific about scope ("check security for payment module"), mention the technology (Terraform vs Kustomize), and state your goal ("preparing for K8s 1.30 upgrade") for best results.
+
+For the full list of 17 use cases with detailed examples, see [`docs/use-cases.md`](docs/use-cases.md).
+
+---
+
 ## Commands
 
 ### Which agent should I use?
