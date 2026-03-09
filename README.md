@@ -249,6 +249,8 @@ See [`docs/`](docs/) for detailed guides:
 | File | Description |
 |------|-------------|
 | [`docs/runbook.md`](docs/runbook.md) | Complete runbook: installation, tool setup, agent reference, command reference, common workflows, troubleshooting |
+| [`docs/use-cases.md`](docs/use-cases.md) | 17 real-world use cases with natural language examples (EN/ZH-TW) |
+| [`docs/cloud-integrations-roadmap.md`](docs/cloud-integrations-roadmap.md) | Cloud integration roadmap: AWS EKS, Azure AKS, GCP enhancements, cost optimization, and more (EN/ZH-TW) |
 | [`docs/README.zh-TW.md`](docs/README.zh-TW.md) | Traditional Chinese documentation |
 
 ---
