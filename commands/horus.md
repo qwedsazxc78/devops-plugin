@@ -52,7 +52,7 @@ commands:
   - "*full — Run full pipeline (RUNS CLI TOOLS: terraform fmt/init/validate + analysis + report)"
   - "*upgrade — Full Helm upgrade pipeline (version check -> update -> validate -> security -> commit)"
   - "*security — Security audit (reads files + analyzes code, no CLI exec)"
-  - "*validate — Validation pipeline (reads files + analyzes code, no CLI exec)"
+  - "*validate — Validation pipeline (fmt check + file analysis + consistency)"
   - "*new-module — Add new Helm module (scaffold -> validate -> security -> register)"
   - "*cicd — CI/CD improvement pipeline (analyze -> recommend -> generate)"
   - "*health — Platform health check (versions + security + validation)"
@@ -83,8 +83,9 @@ Step 2: [helm-version-upgrade] Apply atomic 3-file updates
         -> One module at a time, verify each update
 
 Step 3: [terraform-validate] Validate changed files
-        -> terraform fmt -check
-        -> terraform validate (if possible)
+        -> Discover TF_DIR (same as *full Step 0)
+        -> cd $TF_DIR && terraform fmt -check
+        -> cd $TF_DIR && terraform validate (skip if .terraform missing)
         -> Cross-file consistency check
         -> Halt on any validation error
 
@@ -106,26 +107,45 @@ Step 6: Offer next actions
 
 ### `*full` — Full Pipeline Check (with Report)
 
-**Purpose:** Execute real commands + code analysis across 8 steps. Each step writes its own YAML record. At the end, generate a final markdown summary report.
+**Purpose:** Execute real commands + code analysis across 10 steps (Step 0-9). Each step writes its own YAML record. At the end, generate a final markdown summary report.
 
-**This is the ONLY pipeline that actually runs shell commands.** Other pipelines (`*validate`, `*security`) perform code-level analysis by reading files. `*full` runs the real tools.
+**This is the primary pipeline that runs shell commands** (terraform fmt, init, validate). Other pipelines like `*security` perform code-level analysis by reading files. `*validate` also runs `terraform fmt -check` but skips init/validate if `.terraform` is missing.
 
 **Step YAML directory:** `docs/reports/YYYY-MM-DD/` (per-step records)
-**Final report:** `docs/reports/devops-full-check-YYYY-MM-DD.md` (markdown summary)
+**Final report:** `docs/reports/devops-horus-full-check-YYYY-MM-DD.md` (markdown summary)
 
 ```
 Pipeline: *full
+Step 0: [DISCOVER] Locate Terraform Root Directory
+        -> Find the directory containing *.tf files (do NOT hardcode "application")
+        -> Strategy: find . -maxdepth 3 -name "*.tf" -not -path "./.terraform/*" | head -1 | xargs dirname
+        -> Verify the directory contains a backend configuration (e.g., backend.tf or terraform { backend {} })
+        -> Set TF_DIR=<discovered path> for all subsequent steps
+        -> Write: docs/reports/YYYY-MM-DD/00-discover.yaml
+        -> Gate: HALT if no *.tf files found
+
 Step 1: [EXEC] Terraform Format Check
-        -> Run: cd application && terraform fmt -check -recursive
+        -> Run: cd $TF_DIR && terraform fmt -check -recursive
         -> Write: docs/reports/YYYY-MM-DD/01-terraform-fmt.yaml
 
-Step 2: [EXEC] Terraform Init (no backend)
-        -> Run: cd application && terraform init -backend=false
+Step 2: [EXEC] Terraform Init (user-controlled)
+        -> IMPORTANT: terraform init can timeout due to provider downloads or
+           backend configuration (e.g., GitLab HTTP backend needs credentials).
+           Each project may have a different init method — do NOT assume one way.
+        -> Before running, ASK the user:
+           "Step 2 is terraform init. Options:
+            a) Run `terraform init -backend=false` (skip backend, still downloads providers)
+            b) Skip init (if .terraform/ already exists from a previous init)
+            c) Skip init + validate (jump directly to read-only steps 4-8)"
+        -> If user chooses (a):
+           Run: cd $TF_DIR && terraform init -backend=false (with 3-min timeout)
+        -> If user chooses (b) or (c): mark as SKIP and continue
+        -> Gate: WARN on failure (continue to read-only steps)
         -> Write: docs/reports/YYYY-MM-DD/02-terraform-init.yaml
-        -> Required for Step 3
 
-Step 3: [EXEC] Terraform Validate
-        -> Run: cd application && terraform validate
+Step 3: [EXEC] Terraform Validate (requires successful init)
+        -> Run: cd $TF_DIR && terraform validate
+        -> SKIP if Step 2 was skipped or failed, or user chose option (c)
         -> Write: docs/reports/YYYY-MM-DD/03-terraform-validate.yaml
 
 Step 4: [READ] Helm Version Consistency
@@ -149,8 +169,8 @@ Step 8: [READ] Light Security Scan
         -> Write: docs/reports/YYYY-MM-DD/08-security-scan.yaml
 
 Step 9: [GENERATE] Final Markdown Report
-        -> Read all 8 YAML step files from docs/reports/YYYY-MM-DD/
-        -> Aggregate into: docs/reports/devops-full-check-YYYY-MM-DD.md
+        -> Read all step YAML files (00-09) from docs/reports/YYYY-MM-DD/
+        -> Aggregate into: docs/reports/devops-horus-full-check-YYYY-MM-DD.md
         -> Print report path and summary to user
 ```
 
@@ -159,6 +179,21 @@ Step 9: [GENERATE] Final Markdown Report
 #### Per-Step YAML Schema
 
 Each step YAML file MUST follow this structure. Write using the Write tool.
+
+**Step 0 (discovery type):**
+
+```yaml
+step:
+  number: 0
+  name: discover_tf_dir
+  type: discovery
+  executed_at: "YYYY-MM-DDTHH:MM:SSZ"
+  status: PASS    # PASS | FAIL
+  tf_dir: "./my-infra"      # example — discovered Terraform root directory
+  backend_type: "http"      # detected backend type (http/gcs/s3/local/none)
+  details: "Found Terraform root at ./application with http backend"
+  tf_files_count: 12
+```
 
 **Steps 1-3 (exec type):**
 
@@ -169,13 +204,14 @@ step:
   type: exec
   command: "terraform fmt -check -recursive"
   executed_at: "YYYY-MM-DDTHH:MM:SSZ"
-  status: PASS    # PASS | FAIL
+  status: PASS    # PASS | FAIL | SKIP
   exit_code: 0
   details: "0 files need formatting"
   output: |
     # raw command stdout (truncate to 50 lines max)
   files: []       # list of unformatted files if FAIL
   error: null     # stderr message if FAIL
+  skip_reason: null  # reason if SKIP (e.g., "init failed — terraform validate requires successful init")
 ```
 
 **Step 4 (helm versions):**
@@ -275,7 +311,7 @@ step:
 
 #### Final Markdown Report
 
-After all 8 step YAML files are written, generate the final markdown report at `docs/reports/devops-full-check-YYYY-MM-DD.md`. This report aggregates all YAML step data into a human-readable summary.
+After all step YAML files (00-08) are written, generate the final markdown report at `docs/reports/devops-horus-full-check-YYYY-MM-DD.md`. This report aggregates all YAML step data into a human-readable summary.
 
 **Markdown Report Rules:**
 1. **Failed checks first** — show full detail tables for any FAIL steps
@@ -318,9 +354,12 @@ Step 4: Offer remediation actions
 
 ```
 Pipeline: *validate
+Step 0: [DISCOVER] Locate Terraform root directory (same as *full Step 0)
+        -> Set TF_DIR for all subsequent steps
+
 Step 1: [terraform-validate] Full validation
-        -> terraform fmt -check -recursive
-        -> terraform validate (syntax + schema)
+        -> cd $TF_DIR && terraform fmt -check -recursive
+        -> cd $TF_DIR && terraform validate (syntax + schema) — requires init; skip if .terraform missing
         -> JSON schema validation (infra/*.json)
         -> Cross-file consistency (versions, sources, configs)
         -> Naming convention audit
@@ -443,13 +482,14 @@ Display:
 |  1. *full       — Full check (RUNS CLI) + report     |
 |  2. *upgrade    — Upgrade Helm chart versions         |
 |  3. *security   — Security audit (file analysis)     |
-|  4. *validate   — Validation (file analysis)         |
+|  4. *validate   — Validation (fmt + file analysis)    |
 |  5. *new-module — Scaffold new Helm module           |
 |  6. *cicd       — Improve CI/CD pipeline             |
 |  7. *health     — Platform health check              |
 |                                                      |
-|  Note: Only *full runs CLI tools (terraform fmt,     |
-|  init, validate). Others analyze files directly.     |
+|  Note: *full runs CLI tools (terraform fmt, init,    |
+|  validate). *validate runs fmt check. Others         |
+|  analyze files directly.                             |
 |                                                      |
 |  Type a number or command to begin.                  |
 |  Type *exit to end session.                          |

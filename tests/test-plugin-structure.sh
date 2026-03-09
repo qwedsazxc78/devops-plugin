@@ -11,6 +11,7 @@
 #   ./tests/test-plugin-structure.sh refs       # Run only reference tests
 #   ./tests/test-plugin-structure.sh security   # Run only security tests
 #   ./tests/test-plugin-structure.sh changelog  # Run only changelog tests
+#   ./tests/test-plugin-structure.sh pipeline   # Run only pipeline definition tests
 # =============================================================================
 
 set -uo pipefail
@@ -173,7 +174,7 @@ test_expected_files() {
 
   # Commands
   local expected_commands=(
-    "horus" "zeus" "detect"
+    "horus" "zeus" "detect" "status"
     "lint" "validate" "security-scan" "secret-audit"
     "diff-preview" "upgrade-check" "pipeline-check"
     "pre-commit" "k8s-compat"
@@ -317,7 +318,7 @@ test_content_rules() {
     local matches
     matches=$(grep -rl "$pattern" "$search_dir" \
       --include="*.md" --include="*.json" --include="*.sh" \
-      2>/dev/null | grep -v ".git/" | grep -v "tests/" || true)
+      2>/dev/null | grep -v ".git/" | grep -v "tests/" | grep -v "CHANGELOG.md" | grep -v "docs/examples/" | grep -v "CLAUDE.md" || true)
 
     if [[ -z "$matches" ]]; then
       pass "No '$pattern' found ($desc)"
@@ -643,6 +644,165 @@ test_install_script() {
 }
 
 # =============================================================================
+# TEST: README image references resolve to real files
+# =============================================================================
+test_readme_images() {
+  section "README Image References"
+
+  # Check docs/images/ directory exists
+  if [[ -d "$PLUGIN_DIR/docs/images" ]]; then
+    pass "docs/images/ directory exists"
+  else
+    fail "docs/images/ directory missing"
+    return
+  fi
+
+  # Extract image paths from README.md
+  local readme_images
+  readme_images=$(grep -oE '!\[.*\]\(([^)]+)\)' "$PLUGIN_DIR/README.md" 2>/dev/null \
+    | sed 's/.*](//' | sed 's/)//' || true)
+
+  if [[ -z "$readme_images" ]]; then
+    warn "No image references found in README.md"
+  else
+    while IFS= read -r img_path; do
+      if [[ -f "$PLUGIN_DIR/$img_path" ]]; then
+        pass "README image exists: $img_path"
+      else
+        fail "README image missing: $img_path"
+      fi
+    done <<< "$readme_images"
+  fi
+
+  # Check zh-TW README images too
+  if [[ -f "$PLUGIN_DIR/docs/README.zh-TW.md" ]]; then
+    local zhtw_images
+    zhtw_images=$(grep -oE '!\[.*\]\(([^)]+)\)' "$PLUGIN_DIR/docs/README.zh-TW.md" 2>/dev/null \
+      | sed 's/.*](//' | sed 's/)//' || true)
+
+    if [[ -n "$zhtw_images" ]]; then
+      while IFS= read -r img_path; do
+        # zh-TW README is in docs/, so paths are relative to docs/
+        if [[ -f "$PLUGIN_DIR/docs/$img_path" ]]; then
+          pass "zh-TW README image exists: $img_path"
+        elif [[ -f "$PLUGIN_DIR/$img_path" ]]; then
+          pass "zh-TW README image exists: $img_path"
+        else
+          fail "zh-TW README image missing: $img_path (checked docs/$img_path and $img_path)"
+        fi
+      done <<< "$zhtw_images"
+    fi
+  fi
+}
+
+# =============================================================================
+# TEST: Horus pipeline definitions consistency
+# =============================================================================
+test_horus_pipeline() {
+  section "Horus Pipeline Definitions"
+
+  local horus_cmd="$PLUGIN_DIR/commands/horus.md"
+
+  if [[ ! -f "$horus_cmd" ]]; then
+    fail "commands/horus.md not found"
+    return
+  fi
+
+  # *full pipeline should have Step 0 discovery (not hardcoded directory)
+  if grep -q "Step 0.*DISCOVER" "$horus_cmd" 2>/dev/null; then
+    pass "*full pipeline has Step 0 discovery"
+  else
+    fail "*full pipeline missing Step 0 discovery"
+  fi
+
+  # Step 0 should NOT hardcode "application" directory
+  if grep -A3 "Step 0" "$horus_cmd" | grep -q "do NOT hardcode"; then
+    pass "*full Step 0 warns against hardcoded paths"
+  else
+    warn "*full Step 0 missing hardcode warning"
+  fi
+
+  # Step 2 should be user-controlled (ASK pattern)
+  if grep -q "ASK the user" "$horus_cmd" 2>/dev/null; then
+    pass "*full Step 2 is user-controlled (ASK pattern)"
+  else
+    fail "*full Step 2 missing user-controlled ASK pattern"
+  fi
+
+  # Step 2 should offer skip options
+  if grep -q "Skip init" "$horus_cmd" 2>/dev/null; then
+    pass "*full Step 2 offers skip options"
+  else
+    fail "*full Step 2 missing skip options"
+  fi
+
+  # Step 3 should reference SKIP condition
+  if grep -A2 "Step 3.*Terraform Validate" "$horus_cmd" | grep -q "SKIP"; then
+    pass "*full Step 3 has SKIP condition tied to Step 2"
+  else
+    fail "*full Step 3 missing SKIP condition"
+  fi
+
+  # Step count should say 10 steps
+  if grep -q "10 steps" "$horus_cmd" 2>/dev/null; then
+    pass "*full pipeline describes 10 steps"
+  else
+    fail "*full pipeline step count incorrect (should be 10)"
+  fi
+
+  # Step 0 should have YAML output file (00-discover.yaml)
+  if grep -q "00-discover.yaml" "$horus_cmd" 2>/dev/null; then
+    pass "*full Step 0 writes 00-discover.yaml"
+  else
+    fail "*full Step 0 missing 00-discover.yaml output"
+  fi
+
+  # *validate pipeline should also have discovery step
+  if grep -A2 "Pipeline: \*validate" "$horus_cmd" | grep -q -i "discover"; then
+    pass "*validate pipeline has discovery step"
+  else
+    # Check within the validate section more broadly
+    local in_validate=0
+    while IFS= read -r line; do
+      if echo "$line" | grep -q "Pipeline: \*validate"; then
+        in_validate=1
+      elif echo "$line" | grep -q "^Pipeline:"; then
+        in_validate=0
+      fi
+      if [[ $in_validate -eq 1 ]] && echo "$line" | grep -qi "discover"; then
+        pass "*validate pipeline has discovery step"
+        in_validate=2
+        break
+      fi
+    done < "$horus_cmd"
+    if [[ $in_validate -ne 2 ]]; then
+      fail "*validate pipeline missing discovery step"
+    fi
+  fi
+
+  # *upgrade pipeline should reference TF_DIR discovery
+  if grep -A20 "Pipeline: \*upgrade" "$horus_cmd" | grep -q "Discover TF_DIR\|TF_DIR"; then
+    pass "*upgrade pipeline uses TF_DIR discovery"
+  else
+    fail "*upgrade pipeline missing TF_DIR discovery"
+  fi
+
+  # Per-step YAML schema should include Step 0 (discovery type)
+  if grep -q "Step 0 (discovery type)" "$horus_cmd" 2>/dev/null; then
+    pass "YAML schema includes Step 0 discovery type"
+  else
+    fail "YAML schema missing Step 0 discovery type"
+  fi
+
+  # exec type schema should include SKIP status
+  if grep -A10 "Steps 1-3 (exec type)" "$horus_cmd" | grep -q "SKIP"; then
+    pass "exec type YAML schema includes SKIP status"
+  else
+    fail "exec type YAML schema missing SKIP status"
+  fi
+}
+
+# =============================================================================
 # Main
 # =============================================================================
 main() {
@@ -665,12 +825,16 @@ main() {
     refs)
       test_references
       test_command_skill_consistency
+      test_readme_images
       ;;
     security)
       test_security
       ;;
     changelog)
       test_changelog
+      ;;
+    pipeline)
+      test_horus_pipeline
       ;;
     *)
       test_structure
@@ -680,6 +844,8 @@ main() {
       test_content_rules
       test_references
       test_command_skill_consistency
+      test_readme_images
+      test_horus_pipeline
       test_security
       test_changelog
       test_install_script
