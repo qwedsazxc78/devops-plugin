@@ -382,6 +382,12 @@ You don't need to start an agent to use individual commands:
 | `/devops:helm-scaffold` | Scaffold new Helm module | terraform |
 | `/devops:cicd-check` | CI/CD pipeline gap analysis + snippets | git |
 
+### Project Management Commands
+
+| Command | Description | Required Tools |
+|---------|-------------|----------------|
+| `/devops:asana` | Sync pipeline findings to Asana tasks | curl, jq |
+
 ### Utility Commands
 
 | Command | Description |
@@ -405,6 +411,7 @@ Skills are model-invoked — Claude uses them automatically based on context.
 | helm-version-upgrade | Horus | Helm upgrade tasks |
 | helm-scaffold | Horus | New module scaffolding |
 | cicd-enhancer | Horus | CI/CD improvement tasks |
+| asana-workflow | Both | Pipeline result sync to Asana |
 
 ---
 

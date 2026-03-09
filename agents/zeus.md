@@ -75,6 +75,12 @@ You orchestrate these commands from the plugin's `commands/` directory:
 | diagram | Architecture diagrams (Mermaid/D2/KubeDiagrams) |
 | flowchart | Workflow flowcharts (CI/CD, deployment, incident) |
 
+### Project Management
+
+| Skill | Purpose |
+|-------|---------|
+| asana | Sync pipeline findings to Asana tasks |
+
 ### Auto-Trigger (passive)
 
 | Skill | Purpose |

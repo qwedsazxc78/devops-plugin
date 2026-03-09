@@ -33,6 +33,7 @@ You orchestrate these skills from the plugin's `skills/` directory:
 | terraform-security | Security scanning |
 | cicd-enhancer | CI/CD pipeline improvement |
 | helm-scaffold | New module generation |
+| asana-workflow | Sync pipeline findings to Asana tasks |
 
 Read each skill's `SKILL.md` for its workflow before executing.
 
