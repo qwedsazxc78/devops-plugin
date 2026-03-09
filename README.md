@@ -7,21 +7,95 @@
 **English** | [繁體中文](docs/README.zh-TW.md)
 
 > Two AI-powered DevOps agents — **Horus** (IaC) and **Zeus** (GitOps) — with 20+ automated pipeline commands for Terraform, Helm, Kustomize, and ArgoCD.
+>
+> **Cross-platform:** Works with **Claude Code**, **OpenAI Codex CLI**, and **Google Gemini CLI** via the [Agent Skills](https://agentskills.io/specification) open standard.
 
 ## Quick Start
 
 ### 1. Install the plugin
 
+Choose the method that matches your AI coding assistant:
+
+<details open>
+<summary><b>Claude Code</b> (recommended)</summary>
+
 ```bash
-# Option A: Add marketplace + install (recommended)
+# Option A: Marketplace install (recommended)
 /plugin marketplace add qwedsazxc78/devops-plugin
 /plugin install devops@devops-go
 
 # Option B: Local development
+git clone https://github.com/qwedsazxc78/devops-plugin.git
 claude --plugin-dir ./devops-plugin
 ```
 
-### 2. Install required tools
+</details>
+
+<details>
+<summary><b>OpenAI Codex CLI</b></summary>
+
+```bash
+git clone https://github.com/qwedsazxc78/devops-plugin.git
+cd devops-plugin && bash codex/setup.sh
+# Creates .agents/skills/ symlinks + copies AGENTS.md to your project
+```
+
+After setup, Codex CLI automatically loads the skills. Use natural language:
+```
+codex "Validate my Terraform code"
+codex "Run a security scan on my Helm charts"
+```
+
+</details>
+
+<details>
+<summary><b>Google Gemini CLI</b></summary>
+
+```bash
+git clone https://github.com/qwedsazxc78/devops-plugin.git
+cd devops-plugin && bash gemini/setup.sh
+# Creates .gemini/skills/ symlinks + copies GEMINI.md and agent files
+```
+
+After setup, Gemini CLI automatically loads the skills. Use natural language:
+```
+gemini "Check if my Kustomize manifests are ready to merge"
+gemini "Scan for security issues in my Terraform modules"
+```
+
+</details>
+
+<details>
+<summary><b>Cross-Platform (npx skills)</b></summary>
+
+[`npx skills`](https://github.com/vercel-labs/skills) auto-detects installed agents and routes skills to the correct directories:
+
+```bash
+# Install all DevOps skills (works with Claude, Codex, and Gemini)
+npx skills add qwedsazxc78/devops-plugin
+
+# Install specific skills only
+npx skills add qwedsazxc78/devops-plugin --skill terraform-validate
+npx skills add qwedsazxc78/devops-plugin --skill terraform-security
+```
+
+</details>
+
+### 2. Update to latest version
+
+```bash
+# Git-based update
+cd devops-plugin && git pull origin main
+
+# Or via npx skills
+npx skills update
+
+# Re-sync platform adapters (if using Codex or Gemini)
+bash codex/setup.sh    # Codex CLI
+bash gemini/setup.sh   # Gemini CLI
+```
+
+### 3. Install required tools
 
 <details>
 <summary><b>macOS</b></summary>
@@ -108,7 +182,7 @@ Or use the interactive installer:
 ./scripts/install-tools.sh check    # Check only
 ```
 
-### 3. Check tool installation
+### 4. Check tool installation (Claude Code)
 
 ```
 /devops:status              # Check all tools + install missing
@@ -116,13 +190,13 @@ Or use the interactive installer:
 /devops:status zeus         # GitOps tools only
 ```
 
-### 4. Detect your repo type
+### 5. Detect your repo type (Claude Code)
 
 ```
 /devops:detect
 ```
 
-### 5. Start an agent
+### 6. Start an agent (Claude Code)
 
 ```
 /devops:horus     # IaC repos (Terraform + Helm + GKE)
@@ -227,6 +301,58 @@ The `*full` pipeline runs 10 steps (discovery + terraform CLI + file analysis) a
 
 ---
 
+## Use Cases — Just Say What You Need
+
+You don't need to memorize commands. Describe your goal in natural language (English or 中文), and the plugin routes to the right pipeline automatically.
+
+### Horus (IaC) Examples
+
+| What you say | Pipeline |
+|---|---|
+| "Scan all Helm chart versions" / 「掃描所有 Helm chart 版本」 | `*upgrade` |
+| "Validate all my Terraform code" / 「驗證所有 Terraform 程式碼」 | `*validate` |
+| "Run a security audit" / 「做一次安全稽核」 | `*security` |
+| "Analyze CI/CD pipeline" / 「分析 CI/CD 流水線」 | `*cicd` |
+| "Add a new Helm module for cert-manager" / 「建立 cert-manager 的 Helm module」 | `*new-module` |
+| "Show platform health dashboard" / 「顯示平台健康儀表板」 | `*health` |
+
+### Zeus (GitOps) Examples
+
+| What you say | Pipeline |
+|---|---|
+| "Check if my changes are ready to merge" / 「我的修改可以合併了嗎？」 | `*pre-merge` |
+| "Scan manifests for security issues" / 「掃描有沒有安全漏洞」 | `*full` (security) |
+| "Help me onboard a new service" / 「幫我上線新服務」 | `*onboard` |
+| "Generate architecture diagram" / 「幫我畫架構圖」 | `*diagram` |
+| "Check for deprecated K8s APIs" / 「檢查棄用的 API」 | `*full` (upgrade-check) |
+| "Preview the deployment diff" / 「預覽部署變更」 | `*full` (diff-preview) |
+
+### Combined Workflows
+
+```
+# Monday morning routine — full platform health check
+User: "Run a complete health check on everything"
+→ Horus *health + Zeus *health-check → consolidated dashboard
+
+# Pre-release checklist
+User: "We're releasing v2.5.0 next week. Make sure everything is ready."
+→ Zeus *full → security scan → diff preview → deprecated API check
+
+# Incident investigation
+User: "Something broke in production. Check what changed recently."
+→ diff-preview → image drift check → change impact diagram
+
+# New team member onboarding
+User: "A new developer is joining. Help them understand our infra."
+→ /devops:detect → tool status → architecture diagram → health dashboard
+```
+
+> **Tips:** Be specific about scope ("check security for payment module"), mention the technology (Terraform vs Kustomize), and state your goal ("preparing for K8s 1.30 upgrade") for best results.
+
+For the full list of 17 use cases with detailed examples, see [`docs/use-cases.md`](docs/use-cases.md).
+
+---
+
 ## Commands
 
 ### Getting Started
@@ -284,9 +410,26 @@ See [`docs/`](docs/) for detailed guides:
 | File | Description |
 |------|-------------|
 | [`docs/runbook.md`](docs/runbook.md) | Complete runbook: installation, tool setup, agent reference, command reference, common workflows, troubleshooting |
+| [`docs/use-cases.md`](docs/use-cases.md) | 17 real-world use cases with natural language examples (EN/ZH-TW) |
+| [`docs/cloud-integrations-roadmap.md`](docs/cloud-integrations-roadmap.md) | Cloud integration roadmap: AWS EKS, Azure AKS, GCP enhancements, cost optimization, and more (EN/ZH-TW) |
+| [`docs/cross-platform-migration-plan.md`](docs/cross-platform-migration-plan.md) | Cross-platform migration plan: Claude Code + Codex + Gemini CLI support, version upgrade strategy (EN/ZH-TW) |
 | [`docs/README.zh-TW.md`](docs/README.zh-TW.md) | Traditional Chinese documentation |
 | [`docs/examples/devops-horus-full-check-2026-03-06.md`](docs/examples/devops-horus-full-check-2026-03-06.md) | Example: Horus `*full` pipeline report |
 | [`docs/examples/devops-zeus-full-check-2026-03-06.md`](docs/examples/devops-zeus-full-check-2026-03-06.md) | Example: Zeus `*full` pipeline report |
+
+---
+
+## Cross-Platform Support
+
+This plugin uses the [Agent Skills](https://agentskills.io/specification) open standard. All 8 skills work natively on:
+
+| Platform | Skills | Agents | Commands |
+|----------|--------|--------|----------|
+| **Claude Code** | Native (SKILL.md) | Native (`agents/*.md`) | `/devops:*` slash commands |
+| **OpenAI Codex CLI** | Native (`.agents/skills/`) | Via `AGENTS.md` routing | Natural language |
+| **Google Gemini CLI** | Native (`.gemini/skills/`) | Via `GEMINI.md` routing | Natural language |
+
+For cross-platform setup details, see [`docs/cross-platform-migration-plan.md`](docs/cross-platform-migration-plan.md).
 
 ---
 
@@ -294,6 +437,7 @@ See [`docs/`](docs/) for detailed guides:
 
 - **Dynamic discovery** — Modules and environments discovered at runtime
 - **Portable** — Works on any repo following the expected patterns
+- **Cross-platform** — Same skills on Claude Code, Codex CLI, and Gemini CLI
 - **Safety-first** — Always validates before applying, always scans before deploying
 - **Graceful degradation** — Missing tools are skipped with install suggestions
 

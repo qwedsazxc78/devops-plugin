@@ -208,6 +208,7 @@ test_expected_files() {
   # Docs
   [[ -f "$PLUGIN_DIR/docs/runbook.md" ]] && pass "docs/runbook.md exists" || fail "docs/runbook.md missing"
   [[ -f "$PLUGIN_DIR/docs/README.zh-TW.md" ]] && pass "docs/README.zh-TW.md exists" || fail "docs/README.zh-TW.md missing"
+  [[ -f "$PLUGIN_DIR/docs/cross-platform-migration-plan.md" ]] && pass "docs/cross-platform-migration-plan.md exists" || fail "docs/cross-platform-migration-plan.md missing"
 
   # Scripts
   [[ -f "$PLUGIN_DIR/scripts/install-tools.sh" ]] && pass "scripts/install-tools.sh exists" || fail "scripts/install-tools.sh missing"
