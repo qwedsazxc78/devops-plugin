@@ -12,6 +12,8 @@ This document outlines the migration plan for extending the DevOps plugin from a
 
 > **Goal:** One source of truth for DevOps skills, agents, and workflows — distributed to three AI coding assistants with platform-native experiences and seamless version upgrades.
 
+> **Key Finding:** [Agent Skills](https://agentskills.io/specification) is now an **open standard** (released Dec 2025, adopted by 25+ tools including all three target platforms). All three platforms natively read `SKILL.md` files — no adapter layer needed for skills.
+
 ---
 
 ## Current State
@@ -94,16 +96,18 @@ devops-plugin/                            ← Same repo, extended
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | **Repo strategy** | Single repo with platform adapters | Avoids sync issues, one PR covers all platforms |
-| **Skills standard** | Open Agent Skills (SKILL.md) | Claude + Codex share the same standard natively |
-| **Gemini approach** | Adapter layer (GEMINI.md + subagents) | Gemini uses different format; thin adapter needed |
-| **Version source** | `VERSION` file + `plugin.json` | Single source of truth, easy to bump |
-| **Distribution** | Git-based (clone/submodule) + marketplace | Most reliable for cross-platform |
+| **Skills standard** | [Open Agent Skills](https://agentskills.io/specification) (SKILL.md) | All 3 platforms natively support the same standard |
+| **Gemini approach** | Native SKILL.md + GEMINI.md for agent routing | Gemini CLI reads SKILL.md natively; only agent routing needs adapter |
+| **Version source** | `VERSION` file + `plugin.json` + SKILL.md `version:` field | Single source of truth, easy to bump |
+| **Distribution** | Git + `npx skills` + marketplace | Multiple channels for different user preferences |
 
 ---
 
 ## Platform Compatibility Matrix
 
 ### Skills Sharing Strategy
+
+All three platforms now natively support the [Agent Skills open standard](https://agentskills.io/specification):
 
 ```
 skills/terraform-validate/SKILL.md
@@ -112,27 +116,78 @@ skills/terraform-validate/SKILL.md
    ┌────────────┼────────────┐
    │            │            │
 Claude Code  Codex CLI   Gemini CLI
-(native)     (native)    (adapter)
+(native)     (native)    (native)
    │            │            │
-reads from   symlink →    GEMINI.md
-skills/      .codex/      @imports
-directly     skills/      references
+.claude/     .agents/     .gemini/
+skills/      skills/      skills/
+(or plugin)  (symlink)    (symlink)
 ```
 
-**Claude Code + Codex CLI** both implement the Open Agent Skills specification. The `SKILL.md` format with `name:` and `description:` frontmatter works identically on both platforms.
+**All three platforms** implement the Agent Skills specification. The `SKILL.md` format with `name:` and `description:` frontmatter works identically across Claude Code, Codex CLI, and Gemini CLI. No adapter layer is needed for skills — only symlinks or file copies to each platform's expected directory.
 
-**Gemini CLI** uses a different system (extensions + subagents). The adapter layer translates shared content into Gemini-native formats via `GEMINI.md` with `@import` references.
+**Differences remain in:** agent definitions (routing logic), command invocation syntax, and configuration files. These are handled by thin adapter files per platform.
 
 ### Feature Parity Table
 
 | Feature | Claude Code | Codex CLI | Gemini CLI |
 |---------|-------------|-----------|------------|
-| SKILL.md loading | Native | Native (symlink) | Via @import in GEMINI.md |
+| SKILL.md loading | Native | Native | Native |
+| Skills directory | `.claude/skills/` | `.agents/skills/` | `.gemini/skills/` or `.agents/skills/` |
 | Agent switching | `agents/*.md` | Via AGENTS.md routing | `agents/*.md` (subagents) |
 | Command invocation | `/devops:command` | `$command` or natural language | Natural language |
 | Auto-trigger skills | Yes (SKILL.md config) | Yes (allow_implicit_invocation) | Via GEMINI.md instructions |
 | Bash execution | Yes | Yes | Yes (run_shell_command) |
 | Pipeline workflows | Commands → skills chain | AGENTS.md workflows | GEMINI.md workflows |
+| Hot reload | Yes (immediate) | On session start | On session start |
+
+---
+
+## Distribution Channels
+
+### Channel Comparison
+
+| Channel | Versioning | Cross-platform | Auto-update | Best For |
+|---------|-----------|----------------|-------------|----------|
+| **`npx skills`** (Vercel) | Git-based | All agents | `npx skills update` | Individual developers |
+| **npm package** | Semver | All (with install hooks) | `npm update` | Enterprise / private registry |
+| **Git clone** | Tag-based | All | `git pull` | Development / contribution |
+| **Git submodule** | SHA pinning | All | `git submodule update` | Team repos (small teams) |
+| **Claude Marketplace** | Marketplace-managed | Claude only | Automatic | Claude Code users |
+| **Gemini Extensions** | Git-based | Gemini only | `gemini extensions update` | Gemini CLI users |
+
+### Recommended: `npx skills` (Primary) + Git (Developers)
+
+**[`npx skills`](https://github.com/vercel-labs/skills)** (by Vercel Labs) is the emerging standard package manager for agent skills. It auto-detects installed agents and routes SKILL.md files to the correct directories:
+
+```bash
+# Install specific skills from this repo
+npx skills add qwedsazxc78/devops-plugin --skill terraform-validate
+npx skills add qwedsazxc78/devops-plugin --skill terraform-security
+
+# Install all skills
+npx skills add qwedsazxc78/devops-plugin
+
+# Check for updates
+npx skills check
+
+# Update all installed skills
+npx skills update
+```
+
+**Git clone** remains the primary channel for developers who want to contribute or customize:
+
+```bash
+git clone https://github.com/qwedsazxc78/devops-plugin.git
+```
+
+### Future: npm Package Distribution
+
+For enterprise teams with private registries, publishing as an npm package with install hooks:
+
+```bash
+npm install @awoo/devops-plugin
+# postinstall hook copies SKILL.md files to detected agent directories
+```
 
 ---
 
@@ -148,10 +203,11 @@ MAJOR.MINOR.PATCH
   └────────────── Breaking changes (skill rename, removed commands, restructure)
 ```
 
-**Version is tracked in three places (kept in sync by CI):**
+**Version is tracked in four places (kept in sync by CI):**
 1. `VERSION` file (single source of truth)
 2. `.claude-plugin/plugin.json` → `"version"` field
 3. `CHANGELOG.md` → latest entry header
+4. Each `SKILL.md` → `version:` field in YAML frontmatter (per-skill versioning)
 
 ### Live Update Mechanism
 
@@ -196,7 +252,20 @@ git subtree pull --prefix=.devops-plugin https://github.com/qwedsazxc78/devops-p
 /plugin info devops
 ```
 
-#### Option C: Version Check Script
+#### Option C: `npx skills` Package Manager
+
+```bash
+# Check for updates across all installed skills
+npx skills check
+
+# Update all skills to latest
+npx skills update
+
+# Update specific skill
+npx skills update qwedsazxc78/devops-plugin --skill terraform-validate
+```
+
+#### Option D: Version Check Script
 
 A built-in version check command that works across all platforms:
 
@@ -323,7 +392,9 @@ Use $terraform-validate, $terraform-security, $helm-version-upgrade, etc.
 [... shared workflow definitions ...]
 ```
 
-**Setup:** `codex/setup.sh` creates symlinks from `.codex/skills/` → `skills/`
+**Setup:** `codex/setup.sh` creates symlinks from `.agents/skills/` → `skills/`
+
+**Skill scoping (Codex):** `.agents/skills/` (workspace), `~/.agents/skills/` (user), `/etc/codex/skills/` (admin/org-wide)
 
 ### Gemini CLI Adapter (`gemini/GEMINI.md`)
 
@@ -335,13 +406,30 @@ Use $terraform-validate, $terraform-security, $helm-version-upgrade, etc.
 
 You are a DevOps assistant. Use the imported agent definitions above.
 
-## Workflow Reference
-@../../skills/terraform-validate/SKILL.md
-@../../skills/terraform-security/SKILL.md
-[... import all skills ...]
+## Agent Selection
+- For Terraform, Helm, GKE → follow Horus workflows
+- For Kustomize, ArgoCD, GitOps → follow Zeus workflows
+- Unsure → scan for .tf files (Horus) or kustomization.yaml (Zeus)
 ```
 
-**Setup:** `gemini/setup.sh` copies adapter files to `.gemini/`
+**Setup:** `gemini/setup.sh` symlinks skills to `.gemini/skills/` and copies agent/GEMINI.md files
+
+**Note:** Gemini CLI natively reads SKILL.md (Agent Skills standard) from `.gemini/skills/` or `.agents/skills/` — no format conversion needed. Only agent routing (GEMINI.md) and subagent definitions need Gemini-specific format.
+
+### `npx skills` Compatibility
+
+For `npx skills add` to work, skills should follow the standard directory layout:
+
+```
+skills/
+  terraform-validate/
+    SKILL.md              ← Required (with name: and description: in frontmatter)
+    scripts/              ← Optional executables
+    references/           ← Optional documentation
+    assets/               ← Optional templates
+```
+
+All 8 existing skills already conform to this layout.
 
 ---
 
@@ -358,7 +446,9 @@ You are a DevOps assistant. Use the imported agent definitions above.
 ### Distribution
 
 - [x] Git clone / submodule as primary distribution
+- [x] `npx skills` as cross-platform package manager channel
 - [x] Claude Code marketplace as secondary channel
+- [x] npm package for enterprise / private registry distribution
 - [x] Version check script for update awareness
 - [x] Tag-based releases for pinning
 - [x] Rollback capability via git checkout
@@ -387,6 +477,14 @@ You are a DevOps assistant. Use the imported agent definitions above.
 - [x] Migration scripts for major versions
 - [x] Pinning and rollback support
 
+### Skill Authoring
+
+- [x] SKILL.md with YAML frontmatter (`name:`, `description:`, `version:`)
+- [x] Standard directory layout (`scripts/`, `references/`, `assets/`)
+- [x] Progressive disclosure (only name+description loaded at startup, ~30-50 tokens per skill)
+- [x] Bundle all resources for offline/air-gapped use
+- [x] Skills are immutable artifacts (content-addressed for reproducibility)
+
 ### Missing Parts to Address
 
 - [ ] GitHub Releases automation (tag → release → changelog → assets)
@@ -394,9 +492,13 @@ You are a DevOps assistant. Use the imported agent definitions above.
 - [ ] `MIGRATION.md` template for major version upgrades
 - [ ] End-to-end testing on Codex CLI
 - [ ] End-to-end testing on Gemini CLI
-- [ ] Gemini extension auto-generation script
-- [ ] Codex config.toml template
+- [ ] Add `version:` field to all SKILL.md frontmatter
+- [ ] `npx skills` compatibility testing
+- [ ] npm package publishing setup (package.json with postinstall hooks)
+- [ ] Codex AGENTS.md + `.agents/skills/` setup script
+- [ ] Gemini GEMINI.md + `.gemini/skills/` setup script
 - [ ] Multi-language skill descriptions (EN + ZH-TW)
+- [ ] `.well-known/skills/` web discovery endpoint (for documentation site)
 
 ---
 
@@ -404,15 +506,26 @@ You are a DevOps assistant. Use the imported agent definitions above.
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| SKILL.md format diverges between Claude/Codex | High | Pin to Open Agent Skills spec, test both platforms in CI |
-| Gemini CLI changes extension format | Medium | Adapter layer isolates changes; only `gemini/` needs update |
+| Agent Skills spec evolves with breaking changes | High | Pin to spec version in SKILL.md, test all 3 platforms in CI |
+| Platform-specific SKILL.md extensions diverge | Medium | Use only the common subset of frontmatter fields |
 | Version drift across platforms | Medium | Single VERSION file, CI enforces consistency |
+| `npx skills` changes install behavior | Medium | Git clone remains as fallback; setup scripts are independent |
 | Symlinks not supported on Windows | Low | `setup.sh` falls back to file copy on Windows/WSL2 |
-| User forgets to update | Low | Version check notification at startup |
+| User forgets to update | Low | Version check notification at startup, `npx skills check` |
 
 ---
 
 ## Quick Reference: User Install Flow
+
+### Cross-Platform (npx skills)
+
+```bash
+# Install all DevOps skills to any detected agent (Claude/Codex/Gemini)
+npx skills add qwedsazxc78/devops-plugin
+
+# Update
+npx skills update
+```
 
 ### Claude Code
 
@@ -431,7 +544,7 @@ claude --plugin-dir ./devops-plugin
 ```bash
 git clone https://github.com/qwedsazxc78/devops-plugin.git
 cd devops-plugin && bash codex/setup.sh
-# Creates .codex/skills/ symlinks + copies AGENTS.md
+# Creates .agents/skills/ symlinks + copies AGENTS.md
 ```
 
 ### Google Gemini CLI
@@ -439,7 +552,7 @@ cd devops-plugin && bash codex/setup.sh
 ```bash
 git clone https://github.com/qwedsazxc78/devops-plugin.git
 cd devops-plugin && bash gemini/setup.sh
-# Copies GEMINI.md + agents/ to .gemini/
+# Creates .gemini/skills/ symlinks + copies GEMINI.md + agents/
 ```
 
 ### Update (All Platforms)
@@ -450,6 +563,9 @@ bash scripts/version-check.sh       # Check if update available
 git pull origin main                 # Update to latest
 bash codex/setup.sh                  # Re-sync Codex (if using)
 bash gemini/setup.sh                 # Re-sync Gemini (if using)
+
+# Or via npx skills (auto-detects all installed agents)
+npx skills update
 ```
 
 ---
@@ -463,6 +579,8 @@ bash gemini/setup.sh                 # Re-sync Gemini (if using)
 本文件說明將 DevOps 外掛從 Claude Code 專屬外掛，遷移為支援 **Claude Code**、**OpenAI Codex CLI** 和 **Google Gemini CLI** 的跨平台 AI Agent 技能包的計劃。
 
 > **目標：** 一份 DevOps 技能、Agent 和工作流程的單一真相來源，分發至三個 AI 編程助手，提供平台原生體驗和無縫版本升級。
+
+> **關鍵發現：** [Agent Skills](https://agentskills.io/specification) 現在是一個**開放標準**（2025 年 12 月發布，已被 25+ 工具採用，包括所有三個目標平台）。三個平台都原生讀取 `SKILL.md` 檔案 — skills 不需要適配層。
 
 ---
 
@@ -527,10 +645,10 @@ devops-plugin/                            ← 同一 repo，擴展
 | 決策 | 選擇 | 原因 |
 |------|------|------|
 | **Repo 策略** | 單一 repo + 平台適配器 | 避免同步問題，一個 PR 涵蓋所有平台 |
-| **Skills 標準** | Open Agent Skills（SKILL.md） | Claude + Codex 原生共用同一標準 |
-| **Gemini 方式** | 適配層（GEMINI.md + subagents） | Gemini 使用不同格式，需要薄適配層 |
-| **版本來源** | `VERSION` 檔案 + `plugin.json` | 單一真相來源，易於升版 |
-| **分發方式** | Git（clone/submodule）+ marketplace | 跨平台最可靠 |
+| **Skills 標準** | [Open Agent Skills](https://agentskills.io/specification)（SKILL.md） | 三個平台都原生支援同一標準 |
+| **Gemini 方式** | 原生 SKILL.md + GEMINI.md 做 agent 路由 | Gemini CLI 原生讀取 SKILL.md；僅 agent 路由需適配 |
+| **版本來源** | `VERSION` 檔案 + `plugin.json` + SKILL.md `version:` 欄位 | 單一真相來源，易於升版 |
+| **分發方式** | Git + `npx skills` + marketplace | 多管道滿足不同使用者偏好 |
 
 ---
 
@@ -545,16 +663,16 @@ skills/terraform-validate/SKILL.md
    ┌────────────┼────────────┐
    │            │            │
 Claude Code  Codex CLI   Gemini CLI
-（原生）      （原生）     （適配器）
+（原生）      （原生）     （原生）
    │            │            │
-直接從       symlink →    GEMINI.md
-skills/      .codex/      @imports
-讀取         skills/      引用
+.claude/     .agents/     .gemini/
+skills/      skills/      skills/
+（或外掛）    （symlink）   （symlink）
 ```
 
-**Claude Code + Codex CLI** 都實作 Open Agent Skills 規範。`SKILL.md` 格式的 `name:` 和 `description:` frontmatter 在兩個平台上運作完全相同。
+**三個平台**都實作 Agent Skills 規範。`SKILL.md` 格式的 `name:` 和 `description:` frontmatter 在 Claude Code、Codex CLI 和 Gemini CLI 上運作完全相同。Skills 不需要適配層 — 只需要符號連結或檔案複製到各平台的預期目錄。
 
-**Gemini CLI** 使用不同系統（extensions + subagents）。適配層透過 `GEMINI.md` 的 `@import` 引用將共用內容轉譯為 Gemini 原生格式。
+**差異僅在於：** agent 定義（路由邏輯）、命令呼叫語法和設定檔。這些由各平台的薄適配檔案處理。
 
 ---
 
@@ -570,10 +688,11 @@ MAJOR.MINOR.PATCH
   └────────────── 破壞性變更（skill 重新命名、移除命令、重組結構）
 ```
 
-**版本在三處追蹤（由 CI 保持同步）：**
+**版本在四處追蹤（由 CI 保持同步）：**
 1. `VERSION` 檔案（單一真相來源）
 2. `.claude-plugin/plugin.json` → `"version"` 欄位
 3. `CHANGELOG.md` → 最新條目標題
+4. 各 `SKILL.md` → frontmatter 中的 `version:` 欄位（各 skill 獨立版本）
 
 ### 即時更新機制
 
@@ -618,7 +737,20 @@ git subtree pull --prefix=.devops-plugin https://github.com/qwedsazxc78/devops-p
 /plugin info devops
 ```
 
-#### 方式 C：版本檢查腳本
+#### 方式 C：`npx skills` 套件管理器
+
+```bash
+# 檢查所有已安裝 skills 的更新
+npx skills check
+
+# 更新所有 skills 至最新版
+npx skills update
+
+# 更新特定 skill
+npx skills update qwedsazxc78/devops-plugin --skill terraform-validate
+```
+
+#### 方式 D：版本檢查腳本
 
 跨平台的內建版本檢查命令：
 
@@ -737,7 +869,9 @@ git merge origin/main
 ### 分發
 
 - [x] Git clone / submodule 作為主要分發方式
+- [x] `npx skills` 作為跨平台套件管理器管道
 - [x] Claude Code marketplace 作為次要管道
+- [x] npm 套件用於企業 / 私有 registry 分發
 - [x] 版本檢查腳本用於更新感知
 - [x] 基於 tag 的 release 用於固定版本
 - [x] 透過 git checkout 支援回滾
@@ -766,6 +900,14 @@ git merge origin/main
 - [x] 重大版本遷移腳本
 - [x] 固定版本和回滾支援
 
+### Skill 撰寫
+
+- [x] SKILL.md + YAML frontmatter（`name:`、`description:`、`version:`）
+- [x] 標準目錄佈局（`scripts/`、`references/`、`assets/`）
+- [x] 漸進式揭露（啟動時僅載入 name+description，每個 skill 約 30-50 tokens）
+- [x] 打包所有資源供離線/隔離環境使用
+- [x] Skills 為不可變工件（內容定址，確保可重現性）
+
 ### 待處理項目
 
 - [ ] GitHub Releases 自動化（tag → release → changelog → assets）
@@ -773,9 +915,13 @@ git merge origin/main
 - [ ] 重大版本升級的 `MIGRATION.md` 模板
 - [ ] 在 Codex CLI 上的端到端測試
 - [ ] 在 Gemini CLI 上的端到端測試
-- [ ] Gemini extension 自動生成腳本
-- [ ] Codex config.toml 模板
+- [ ] 在所有 SKILL.md frontmatter 中新增 `version:` 欄位
+- [ ] `npx skills` 相容性測試
+- [ ] npm 套件發布設定（package.json + postinstall hooks）
+- [ ] Codex AGENTS.md + `.agents/skills/` 設定腳本
+- [ ] Gemini GEMINI.md + `.gemini/skills/` 設定腳本
 - [ ] 多語言 skill 描述（EN + ZH-TW）
+- [ ] `.well-known/skills/` 網頁探索端點（用於文件網站）
 
 ---
 
@@ -783,15 +929,26 @@ git merge origin/main
 
 | 風險 | 影響 | 緩解措施 |
 |------|------|---------|
-| SKILL.md 格式在 Claude/Codex 間分歧 | 高 | 固定 Open Agent Skills 規範，CI 中測試兩個平台 |
-| Gemini CLI 變更 extension 格式 | 中 | 適配層隔離變更；僅 `gemini/` 需更新 |
+| Agent Skills 規範發生破壞性變更 | 高 | 在 SKILL.md 中固定規範版本，CI 中測試三個平台 |
+| 各平台的 SKILL.md 擴展欄位分歧 | 中 | 僅使用 frontmatter 欄位的共同子集 |
 | 平台間版本漂移 | 中 | 單一 VERSION 檔案，CI 強制一致性 |
+| `npx skills` 變更安裝行為 | 中 | Git clone 作為備用方案；setup 腳本獨立運作 |
 | Windows 不支援符號連結 | 低 | `setup.sh` 在 Windows/WSL2 上降級為檔案複製 |
-| 使用者忘記更新 | 低 | 啟動時版本檢查通知 |
+| 使用者忘記更新 | 低 | 啟動時版本檢查通知、`npx skills check` |
 
 ---
 
 ## 快速參考：使用者安裝流程
+
+### 跨平台（npx skills）
+
+```bash
+# 安裝所有 DevOps skills 至任何偵測到的 agent（Claude/Codex/Gemini）
+npx skills add qwedsazxc78/devops-plugin
+
+# 更新
+npx skills update
+```
 
 ### Claude Code
 
@@ -810,7 +967,7 @@ claude --plugin-dir ./devops-plugin
 ```bash
 git clone https://github.com/qwedsazxc78/devops-plugin.git
 cd devops-plugin && bash codex/setup.sh
-# 建立 .codex/skills/ 符號連結 + 複製 AGENTS.md
+# 建立 .agents/skills/ 符號連結 + 複製 AGENTS.md
 ```
 
 ### Google Gemini CLI
@@ -818,7 +975,7 @@ cd devops-plugin && bash codex/setup.sh
 ```bash
 git clone https://github.com/qwedsazxc78/devops-plugin.git
 cd devops-plugin && bash gemini/setup.sh
-# 複製 GEMINI.md + agents/ 到 .gemini/
+# 建立 .gemini/skills/ 符號連結 + 複製 GEMINI.md + agents/
 ```
 
 ### 更新（所有平台）
@@ -829,4 +986,7 @@ bash scripts/version-check.sh       # 檢查是否有更新
 git pull origin main                 # 更新至最新
 bash codex/setup.sh                  # 重新同步 Codex（如有使用）
 bash gemini/setup.sh                 # 重新同步 Gemini（如有使用）
+
+# 或透過 npx skills（自動偵測所有已安裝的 agent）
+npx skills update
 ```
