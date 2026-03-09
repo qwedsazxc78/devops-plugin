@@ -2,10 +2,17 @@
 
 Complete guide to installing, configuring, and using the DevOps plugin with Horus (IaC) and Zeus (GitOps) agents.
 
+> **Cross-platform:** Works with Claude Code, OpenAI Codex CLI, and Google Gemini CLI via the [Agent Skills](https://agentskills.io/specification) open standard.
+
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
+  - [Claude Code](#claude-code)
+  - [OpenAI Codex CLI](#openai-codex-cli)
+  - [Google Gemini CLI](#google-gemini-cli)
+  - [Cross-Platform (npx skills)](#cross-platform-npx-skills)
+  - [Updating](#updating)
 - [Tool Setup](#tool-setup)
 - [Getting Started](#getting-started)
 - [Agent Reference](#agent-reference)
@@ -18,16 +25,21 @@ Complete guide to installing, configuring, and using the DevOps plugin with Horu
 
 ## Prerequisites
 
-- Claude Code v1.0.33+ (`claude --version`)
-- macOS or Linux
+- macOS or Linux (Windows via WSL2)
 - Git
 - One of: Homebrew (macOS/Linux) or apt (Debian/Ubuntu)
+- One of the following AI coding assistants:
+  - Claude Code v1.0.33+ (`claude --version`)
+  - OpenAI Codex CLI (`codex --version`)
+  - Google Gemini CLI (`gemini --version`)
 
 ---
 
 ## Installation
 
-### Option A: Marketplace (recommended)
+### Claude Code
+
+#### Option A: Marketplace (recommended)
 
 ```bash
 # Inside Claude Code — add the marketplace, then install the plugin
@@ -35,14 +47,14 @@ Complete guide to installing, configuring, and using the DevOps plugin with Horu
 /plugin install devops@devops-go
 ```
 
-### Option B: Local development
+#### Option B: Local development
 
 ```bash
-git clone <plugin-repo-url> devops-plugin
+git clone https://github.com/qwedsazxc78/devops-plugin.git
 claude --plugin-dir ./devops-plugin
 ```
 
-### Option C: Project-level auto-install
+#### Option C: Project-level auto-install
 
 Add to your project's `.claude/settings.json`:
 
@@ -63,6 +75,90 @@ Add to your project's `.claude/settings.json`:
 ```
 
 Team members will be prompted to install when they trust the project folder.
+
+### OpenAI Codex CLI
+
+```bash
+git clone https://github.com/qwedsazxc78/devops-plugin.git
+cd devops-plugin && bash codex/setup.sh
+```
+
+The setup script:
+1. Creates symlinks from `.agents/skills/` → `skills/` (all 8 skills)
+2. Copies `codex/AGENTS.md` to your project root as `AGENTS.md`
+3. Configures agent routing (Horus for IaC, Zeus for GitOps)
+
+After setup, use Codex with natural language:
+```bash
+codex "Validate all Terraform code in this repo"
+codex "Run a security scan on my Helm charts"
+codex "Check if my Kustomize manifests are ready to merge"
+```
+
+**Skill scoping:** Codex supports workspace (`.agents/skills/`), user (`~/.agents/skills/`), and admin (`/etc/codex/skills/`) skill locations. The setup script installs to workspace scope by default.
+
+### Google Gemini CLI
+
+```bash
+git clone https://github.com/qwedsazxc78/devops-plugin.git
+cd devops-plugin && bash gemini/setup.sh
+```
+
+The setup script:
+1. Creates symlinks from `.gemini/skills/` → `skills/` (all 8 skills)
+2. Copies `gemini/GEMINI.md` and `gemini/agents/` to `.gemini/`
+3. Configures agent routing (Horus for IaC, Zeus for GitOps)
+
+After setup, use Gemini with natural language:
+```bash
+gemini "Scan all Helm chart versions for upgrades"
+gemini "Run a pre-merge check on my GitOps manifests"
+gemini "Generate an architecture diagram"
+```
+
+**Note:** Gemini CLI natively reads SKILL.md files from `.gemini/skills/` — no format conversion needed.
+
+### Cross-Platform (npx skills)
+
+[`npx skills`](https://github.com/vercel-labs/skills) auto-detects all installed agents and routes skills to the correct directories:
+
+```bash
+# Install all DevOps skills
+npx skills add qwedsazxc78/devops-plugin
+
+# Install specific skills only
+npx skills add qwedsazxc78/devops-plugin --skill terraform-validate
+npx skills add qwedsazxc78/devops-plugin --skill helm-version-upgrade
+```
+
+This works for Claude Code, Codex CLI, and Gemini CLI simultaneously.
+
+### Updating
+
+```bash
+# Git-based update
+cd devops-plugin
+git fetch origin main
+git log HEAD..origin/main --oneline    # Review changes
+git pull origin main
+
+# Re-sync platform adapters after update
+bash codex/setup.sh     # If using Codex CLI
+bash gemini/setup.sh    # If using Gemini CLI
+
+# Or use npx skills (auto-detects all agents)
+npx skills update
+
+# Or use the built-in version check
+bash scripts/version-check.sh
+```
+
+**Pin to a specific version:**
+
+```bash
+git tag -l "v*" --sort=-version:refname    # List versions
+git checkout v1.2.0                         # Pin version
+```
 
 ---
 

@@ -3,21 +3,95 @@
 **English** | [繁體中文](docs/README.zh-TW.md)
 
 > Two AI-powered DevOps agents — **Horus** (IaC) and **Zeus** (GitOps) — with 20+ automated pipeline commands for Terraform, Helm, Kustomize, and ArgoCD.
+>
+> **Cross-platform:** Works with **Claude Code**, **OpenAI Codex CLI**, and **Google Gemini CLI** via the [Agent Skills](https://agentskills.io/specification) open standard.
 
 ## Quick Start
 
 ### 1. Install the plugin
 
+Choose the method that matches your AI coding assistant:
+
+<details open>
+<summary><b>Claude Code</b> (recommended)</summary>
+
 ```bash
-# Option A: Add marketplace + install (recommended)
+# Option A: Marketplace install (recommended)
 /plugin marketplace add qwedsazxc78/devops-plugin
 /plugin install devops@devops-go
 
 # Option B: Local development
+git clone https://github.com/qwedsazxc78/devops-plugin.git
 claude --plugin-dir ./devops-plugin
 ```
 
-### 2. Install required tools
+</details>
+
+<details>
+<summary><b>OpenAI Codex CLI</b></summary>
+
+```bash
+git clone https://github.com/qwedsazxc78/devops-plugin.git
+cd devops-plugin && bash codex/setup.sh
+# Creates .agents/skills/ symlinks + copies AGENTS.md to your project
+```
+
+After setup, Codex CLI automatically loads the skills. Use natural language:
+```
+codex "Validate my Terraform code"
+codex "Run a security scan on my Helm charts"
+```
+
+</details>
+
+<details>
+<summary><b>Google Gemini CLI</b></summary>
+
+```bash
+git clone https://github.com/qwedsazxc78/devops-plugin.git
+cd devops-plugin && bash gemini/setup.sh
+# Creates .gemini/skills/ symlinks + copies GEMINI.md and agent files
+```
+
+After setup, Gemini CLI automatically loads the skills. Use natural language:
+```
+gemini "Check if my Kustomize manifests are ready to merge"
+gemini "Scan for security issues in my Terraform modules"
+```
+
+</details>
+
+<details>
+<summary><b>Cross-Platform (npx skills)</b></summary>
+
+[`npx skills`](https://github.com/vercel-labs/skills) auto-detects installed agents and routes skills to the correct directories:
+
+```bash
+# Install all DevOps skills (works with Claude, Codex, and Gemini)
+npx skills add qwedsazxc78/devops-plugin
+
+# Install specific skills only
+npx skills add qwedsazxc78/devops-plugin --skill terraform-validate
+npx skills add qwedsazxc78/devops-plugin --skill terraform-security
+```
+
+</details>
+
+### 2. Update to latest version
+
+```bash
+# Git-based update
+cd devops-plugin && git pull origin main
+
+# Or via npx skills
+npx skills update
+
+# Re-sync platform adapters (if using Codex or Gemini)
+bash codex/setup.sh    # Codex CLI
+bash gemini/setup.sh   # Gemini CLI
+```
+
+### 3. Install required tools
 
 <details>
 <summary><b>macOS</b></summary>
@@ -84,13 +158,13 @@ Or use the interactive installer:
 ./scripts/install-tools.sh check    # Check only
 ```
 
-### 3. Detect your repo type
+### 4. Detect your repo type (Claude Code)
 
 ```
 /devops:detect
 ```
 
-### 4. Start an agent
+### 5. Start an agent (Claude Code)
 
 ```
 /devops:horus     # IaC repos (Terraform + Helm + GKE)
@@ -308,10 +382,25 @@ See [`docs/`](docs/) for detailed guides:
 
 ---
 
+## Cross-Platform Support
+
+This plugin uses the [Agent Skills](https://agentskills.io/specification) open standard. All 8 skills work natively on:
+
+| Platform | Skills | Agents | Commands |
+|----------|--------|--------|----------|
+| **Claude Code** | Native (SKILL.md) | Native (`agents/*.md`) | `/devops:*` slash commands |
+| **OpenAI Codex CLI** | Native (`.agents/skills/`) | Via `AGENTS.md` routing | Natural language |
+| **Google Gemini CLI** | Native (`.gemini/skills/`) | Via `GEMINI.md` routing | Natural language |
+
+For cross-platform setup details, see [`docs/cross-platform-migration-plan.md`](docs/cross-platform-migration-plan.md).
+
+---
+
 ## Design Principles
 
 - **Dynamic discovery** — Modules and environments discovered at runtime
 - **Portable** — Works on any repo following the expected patterns
+- **Cross-platform** — Same skills on Claude Code, Codex CLI, and Gemini CLI
 - **Safety-first** — Always validates before applying, always scans before deploying
 - **Graceful degradation** — Missing tools are skipped with install suggestions
 
